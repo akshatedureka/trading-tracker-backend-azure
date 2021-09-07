@@ -120,6 +120,8 @@ namespace TradeUpdateService
         {
             var orderId = trade.Order.OrderId;
             var orderSide = trade.Order.OrderSide;
+            var symbol = trade.Order.Symbol;
+            var numShares = trade.Order.FilledQuantity;
             
             switch (trade.Event)
             {
@@ -137,7 +139,7 @@ namespace TradeUpdateService
 
                             // Send a message to the queue
                             _queueClient.SendMessage(Base64Encode(JsonConvert.SerializeObject(msg)));
-                            _logger.LogInformation("Published buy order fill for order {orderId} for price {executedPrice} at: {time}", orderId, executedPrice, DateTimeOffset.Now);
+                            _logger.LogInformation("Published buy order fill for order {orderId} for symbol {symbol} quantity {numShares} at price {executedPrice} at: {time}", orderId, symbol, numShares, executedPrice, DateTimeOffset.Now);
                         }
                         catch (Exception ex)
                         {
@@ -154,7 +156,7 @@ namespace TradeUpdateService
 
                             // Send a message to the queue
                             _queueClient.SendMessage(Base64Encode(JsonConvert.SerializeObject(msg)));
-                            _logger.LogInformation("Published sell order fill for order {orderId} for price {executedPrice} at: {time}", orderId, executedPrice, DateTimeOffset.Now);
+                            _logger.LogInformation("Published sell order fill for order {orderId} for symbol {symbol} quantity {numShares} at price {executedPrice} at: {time}", orderId, symbol, numShares, executedPrice, DateTimeOffset.Now);
                         }
                         catch (Exception ex)
                         {
@@ -165,11 +167,11 @@ namespace TradeUpdateService
                 case TradeEvent.Rejected:
                     // ToDo
                     var price = (decimal)trade.Price;
-                    _logger.LogInformation("Rejected order {orderId} for price {price} at: {time}", orderId, price, DateTimeOffset.Now);
+                    _logger.LogError("Rejected order {orderId} for price {price} at: {time}", orderId, price, DateTimeOffset.Now);
                     break;
                 case TradeEvent.Canceled:
-                    //await unitOfWork.Blocks.UpdateBuyOrderCanceled(orderId);
-                    //await unitOfWork.CompleteAsync();
+                    var numSharesCanceled = trade.Order.Quantity;
+                    _logger.LogError("Sell order {orderId} was cancelled for symbol {symbol} quantity {numSharesCanceled} at: {time}", orderId, symbol, numSharesCanceled, DateTimeOffset.Now);
                     break;
                 case TradeEvent.PartialFill:
                     // ToDo

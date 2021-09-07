@@ -28,6 +28,8 @@ namespace TradingService.UpdateBlockFromQueueMsg
         private static Container _container;
         private static Container _containerArchive;
 
+        private const int MaxNumShares = 50;
+
         private static ILogger _log;
 
         [FunctionName("UpdateBlockFromQueueMsg")]
@@ -88,6 +90,10 @@ namespace TradingService.UpdateBlockFromQueueMsg
 
             // Check if buy order below current block has been created, if not, create it
             await CreateBuyOrderBelowIfNotCreated(block.Id, block.Symbol);
+
+            // Sell off at a loss for block 10 blocks above
+            await CreateMarketOrderIfBlockAboveInDowntrend(block.Id, block.Symbol);
+
         }
 
         private static async Task UpdateSellOrderExecuted(Guid externalOrderId, decimal executedSellPrice)
@@ -110,9 +116,9 @@ namespace TradingService.UpdateBlockFromQueueMsg
             // Up the number of shares each time a block gets replaced as confidence goes up
             block.NumShares += 5;
 
-            if (block.NumShares > 50)
+            if (block.NumShares > MaxNumShares)
             {
-                block.NumShares = 50;
+                block.NumShares = MaxNumShares;
             }
 
             var orderId = await Order.CreateNewOrder(OrderSide.Buy, OrderType.Limit, block.Symbol, block.NumShares,
@@ -202,6 +208,14 @@ namespace TradingService.UpdateBlockFromQueueMsg
             // If no buy order has been created, create one
             if (!blockAbove.BuyOrderCreated)
             {
+                // Up the number of shares each time a order is created going up
+                blockAbove.NumShares += 5;
+
+                if (blockAbove.NumShares > MaxNumShares)
+                {
+                    blockAbove.NumShares = MaxNumShares;
+                }
+
                 // Create new buy order
                 var buyOrderId = await Order.CreateNewOrder(OrderSide.Buy, OrderType.StopLimit, blockAbove.Symbol, blockAbove.NumShares,
                     blockAbove.BuyOrderPrice);
@@ -252,6 +266,40 @@ namespace TradingService.UpdateBlockFromQueueMsg
             archiveBlock.ExecutedSellPrice = executedSellPrice;
 
             await _containerArchive.CreateItemAsync<Block>(archiveBlock, new PartitionKey(archiveBlock.Symbol));
+        }
+
+        private static async Task CreateMarketOrderIfBlockAboveInDowntrend(string currentBlockId, string symbol)
+        {
+            const int numBlocksAboveThreshold = 10; // ToDo: 1.5% for now, test and check if this is a good value
+
+            // Get block above and create new buy order if no order has been created, adjust number of shares up since going up (put more in on uptrend)
+            var blockAboveId = (Convert.ToInt64(currentBlockId) + numBlocksAboveThreshold);
+            var blockAboveThreshold = await GetBlockById(blockAboveId, symbol);
+            
+            if (blockAboveThreshold.SellOrderCreated)
+            {
+                // First cancel existing sell order
+                var blockAboveExternalOrderId = blockAboveThreshold.ExternalSellOrderId;
+                var isCanceled = await Order.CancelOrder(blockAboveExternalOrderId);
+
+                if (isCanceled)
+                {
+                    // Create new market sell order
+                    var sellOrderId = await Order.CreateNewOrder(OrderSide.Sell, OrderType.Market, blockAboveThreshold.Symbol, blockAboveThreshold.NumShares,
+                        blockAboveThreshold.SellOrderPrice);
+
+                    // Replace Cosmos DB document, update with external buy id generated from Alpaca
+                    blockAboveThreshold.ExternalSellOrderId = sellOrderId;
+
+                    var updateBlockResponse = await _container.ReplaceItemAsync<Block>(blockAboveThreshold, blockAboveThreshold.Id, new PartitionKey(blockAboveThreshold.Symbol));
+                    _log.LogInformation($"A market sell order has been placed for symbol {symbol}, block id {blockAboveThreshold.Id}. The external order id is {sellOrderId}",
+                        symbol, blockAboveThreshold.Id, sellOrderId);
+                }
+                else
+                {
+                    _log.LogError($"Failure creating market order for symbol {symbol}, block id {blockAboveThreshold.Id}.", symbol, blockAboveThreshold.Id);
+                }
+            }
         }
     }
 }

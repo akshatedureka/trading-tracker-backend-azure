@@ -44,7 +44,17 @@ namespace TradingService.Common.Order
                         Console.WriteLine($"Error while creating StopLimit order in Alpaca {e}: ", e);
                         throw;
                     }
-
+                case OrderType.Market:
+                    try
+                    {
+                        var order = await AlpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, numShares).WithDuration(TimeInForce.Gtc));
+                        return order.OrderId;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Error while creating Market order in Alpaca {e}: ", e);
+                        throw;
+                    }
                 default:
                     break;
             }
@@ -62,6 +72,20 @@ namespace TradingService.Common.Order
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public static async Task<bool> CancelOrder(Guid externalOrderId)
+        {
+            try
+            {
+                var isOrderCanceled = await AlpacaTradingClient.DeleteOrderAsync(externalOrderId);
+                return isOrderCanceled;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while canceling order in Alpaca {e}: ", e);
                 throw;
             }
         }
