@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace TradingService.TradingSymbol.Models
 {
-    public class Symbol
+    public class SymbolData
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
@@ -15,5 +15,11 @@ namespace TradingService.TradingSymbol.Models
         public bool Trading { get; set; }
         [JsonProperty(PropertyName = "active")]
         public bool Active { get; set; }
+        [JsonProperty(PropertyName = "currentQuantity")]
+        public decimal CurrentQuantity { get; set; }
+        [JsonProperty(PropertyName = "currentProfit")]
+        public decimal CurrentProfit { get; set; }
+        [JsonProperty(PropertyName = "archiveProfit")]
+        public decimal ArchiveProfit { get; set; }
     }
 }

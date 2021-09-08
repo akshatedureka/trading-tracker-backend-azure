@@ -40,7 +40,7 @@ namespace TradingService.TradingSymbol
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
 
             // Create new symbol to save
-            var tradingSymbol = new Symbol()
+            var tradingSymbol = new SymbolData()
             {
                 Id = Guid.NewGuid().ToString(),
                 DateCreated = DateTime.Now,
@@ -52,7 +52,7 @@ namespace TradingService.TradingSymbol
             // Save block to Cosmos DB
             try
             {
-                var blockResponse = await container.CreateItemAsync<Symbol>(tradingSymbol, new PartitionKey(tradingSymbol.Name));
+                var blockResponse = await container.CreateItemAsync<SymbolData>(tradingSymbol, new PartitionKey(tradingSymbol.Name));
             }
             catch (CosmosException ex)
             {

@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Alpaca.Markets;
+using TradingService.Common.Models;
 
 namespace TradingService.Common.Order
 {
@@ -82,6 +84,76 @@ namespace TradingService.Common.Order
             {
                 var isOrderCanceled = await AlpacaTradingClient.DeleteOrderAsync(externalOrderId);
                 return isOrderCanceled;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while canceling order in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
+        public static async Task<List<IPosition>> GetOpenPositions()
+        {
+            try
+            {
+                var positions = await AlpacaTradingClient.ListPositionsAsync();
+                return positions.ToList();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while canceling order in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
+        public static async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders()
+        {
+            // Delete all open positions, cancels all open orders before liquidating
+            try
+            {
+                var result = await AlpacaTradingClient.DeleteAllPositionsAsync(new DeleteAllPositionsRequest { CancelOrders = true });
+                var positionStatus = result.ToList();
+                //positionStatus[0].Symbol;
+                //positionStatus[0].IsSuccess;
+                // ToDo: Return list of blocks to archive
+                return positionStatus;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while canceling order in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
+        public static async Task<Block> CloseOpenPositionAndCancelExistingOrders(string symbol)
+        {
+            try
+            {
+                // Cancel open orders for symbol
+                var orders = await AlpacaTradingClient.ListOrdersAsync(new ListOrdersRequest { OrderStatusFilter = OrderStatusFilter.Open }.WithSymbol(symbol));
+                foreach (var order in orders)
+                {
+                    var orderCancelResult = await AlpacaTradingClient.DeleteOrderAsync(order.OrderId);
+                }
+
+                // Delete open position for symbol
+                var positionData = await AlpacaTradingClient.GetPositionAsync(symbol);
+                var result = await AlpacaTradingClient.DeletePositionAsync(new DeletePositionRequest(symbol));
+
+                // Return a block to be archived (assume it sells since it is a market order - could create a new block for the order and wait for it to sell if it becomes an issue)
+                var block = new Block
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Symbol = result.Symbol,
+                    NumShares = result.IntegerQuantity,
+                    DateCreated = DateTime.Now,
+                    ExecutedBuyPrice = positionData.AverageEntryPrice,
+                    ExecutedSellPrice = positionData.AssetCurrentPrice,
+                    ExternalSellOrderId = result.OrderId,
+                    ExternalBuyOrderId = Guid.NewGuid(),
+                };
+
+                return block;
             }
             catch (Exception e)
             {
