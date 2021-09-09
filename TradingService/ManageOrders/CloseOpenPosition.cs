@@ -42,7 +42,7 @@ namespace TradingService.ManageOrders
             await ArchiveBlock(block, block.ExecutedSellPrice);
             log.LogInformation("Created archive record for block id {block.Id} at: {time}", block.Id, DateTimeOffset.Now);
             
-            return new OkObjectResult(JsonConvert.SerializeObject(block));
+            return new OkResult();
         }
 
         private static async Task ArchiveBlock(Block block, decimal executedSellPrice)

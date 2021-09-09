@@ -20,7 +20,7 @@ namespace TradingService.TradingSymbol
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var symbol = JsonConvert.DeserializeObject<SymbolData>(requestBody);
+            var symbol = JsonConvert.DeserializeObject<Symbol>(requestBody);
             
             var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
 
@@ -39,12 +39,12 @@ namespace TradingService.TradingSymbol
             // Update symbol in Cosmos DB
             try
             {
-                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<SymbolData>(symbol.Id, new PartitionKey(symbol.Name));
+                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.Name));
                 var tradingSymbolToUpdate = tradingSymbolToUpdateResponse.Resource;
                 tradingSymbolToUpdate.Active = symbol.Active;
                 tradingSymbolToUpdate.Trading = symbol.Trading;
 
-                var updateBlockResponse = await container.ReplaceItemAsync<SymbolData>(tradingSymbolToUpdate, symbol.Id, new PartitionKey(symbol.Name));
+                var updateBlockResponse = await container.ReplaceItemAsync<Symbol>(tradingSymbolToUpdate, symbol.Id, new PartitionKey(symbol.Name));
             }
             catch (CosmosException ex)
             {

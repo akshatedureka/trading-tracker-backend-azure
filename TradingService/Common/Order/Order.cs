@@ -136,6 +136,20 @@ namespace TradingService.Common.Order
                     var orderCancelResult = await AlpacaTradingClient.DeleteOrderAsync(order.OrderId);
                 }
 
+                // Wait for orders to cancel before proceeding
+                var waitingForOrdersToCancel = true;
+                while (waitingForOrdersToCancel)
+                {
+                    Task.Delay(1000).Wait();
+                    orders = await AlpacaTradingClient.ListOrdersAsync(new ListOrdersRequest { OrderStatusFilter = OrderStatusFilter.Open }.WithSymbol(symbol));
+                    var numOrders = orders.ToList().Count;
+                    if (numOrders == 0)
+                    {
+                        waitingForOrdersToCancel = false;
+                    }
+                    Console.WriteLine($"Waiting for orders to cancel in Alpaca. Count is {numOrders}: ", numOrders);
+                }
+
                 // Delete open position for symbol
                 var positionData = await AlpacaTradingClient.GetPositionAsync(symbol);
                 var result = await AlpacaTradingClient.DeletePositionAsync(new DeletePositionRequest(symbol));

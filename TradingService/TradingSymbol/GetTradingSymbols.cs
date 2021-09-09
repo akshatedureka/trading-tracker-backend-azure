@@ -40,16 +40,12 @@ namespace TradingService.TradingSymbol
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
 
-            var symbols = new List<SymbolData>();
+            var symbols = new List<Symbol>();
 
             // Read symbols from Cosmos DB
             try
             {
-                using var setIterator = container.GetItemLinqQueryable<SymbolData>().ToFeedIterator();
-                while (setIterator.HasMoreResults)
-                {
-                    symbols.AddRange(await setIterator.ReadNextAsync());
-                }
+                symbols = container.GetItemLinqQueryable<Symbol>(allowSynchronousQueryExecution: true).ToList();
             }
             catch (CosmosException ex)
             {

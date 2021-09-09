@@ -101,7 +101,7 @@ namespace TradingService.CreateBlocksFromSymbol
             var blockPrices = new List<BlockPrices>();
             const int numBlocks = 200;
             const decimal buyPercentage = .15M;
-            const decimal sellPercentage = .23M;
+            const decimal sellPercentage = .45M;
 
             // Calculate range up
             for (var i = 0; i < numBlocks / 2; i++)

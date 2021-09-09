@@ -3,14 +3,12 @@ using Newtonsoft.Json;
 
 namespace TradingService.TradingSymbol.Models
 {
-    public class SymbolData
+    public class TradingData
     {
-        [JsonProperty(PropertyName = "id")]
-        public string Id { get; set; }
-        [JsonProperty(PropertyName = "dateCreated")]
-        public DateTime DateCreated { get; set; }
-        [JsonProperty(PropertyName = "name")]
-        public string Name { get; set; }
+        [JsonProperty(PropertyName = "symbolId")]
+        public string SymbolId { get; set; }
+        [JsonProperty(PropertyName = "symbol")]
+        public string Symbol { get; set; }
         [JsonProperty(PropertyName = "trading")]
         public bool Trading { get; set; }
         [JsonProperty(PropertyName = "active")]

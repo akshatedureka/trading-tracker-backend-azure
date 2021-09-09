@@ -270,7 +270,7 @@ namespace TradingService.UpdateBlockFromQueueMsg
 
         private static async Task CreateMarketOrderIfBlockAboveInDowntrend(string currentBlockId, string symbol)
         {
-            const int numBlocksAboveThreshold = 10; // ToDo: 1.5% for now, test and check if this is a good value
+            const int numBlocksAboveThreshold = 20; // ToDo: 3% for now, test and check if this is a good value
 
             // Get block above and create new buy order if no order has been created, adjust number of shares up since going up (put more in on uptrend)
             var blockAboveId = (Convert.ToInt64(currentBlockId) + numBlocksAboveThreshold);

@@ -41,22 +41,20 @@ namespace TradingService.TradingSymbol
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
             var containerBlockArchive = (Container)await database.CreateContainerIfNotExistsAsync(containerIdBlockArchive, "/symbol");
+            var symbols = new List<Symbol>();
 
-            var symbols = new List<SymbolData>();
-
+            // Add symbol data
             // Read symbols from Cosmos DB
             try
             {
-                using var setIterator = container.GetItemLinqQueryable<SymbolData>().ToFeedIterator();
-                while (setIterator.HasMoreResults)
-                {
-                    symbols.AddRange(await setIterator.ReadNextAsync());
-                }
+                symbols = container.GetItemLinqQueryable<Symbol>(allowSynchronousQueryExecution: true).ToList();
             }
             catch (CosmosException ex)
             {
                 log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex);
             }
+
+            var tradingData = symbols.Select(symbol => new TradingData {SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading}).ToList();
 
             // Add in archive data
             var blocks = new List<Block>();
@@ -72,9 +70,9 @@ namespace TradingService.TradingSymbol
                 log.LogError("Issue getting block archives from Cosmos DB item {ex}", ex);
             }
 
-            foreach (var symbol in blocks.SelectMany(block => symbols.Where(symbol => block.Symbol == symbol.Name)))
+            foreach (var tradeData in blocks.SelectMany(block => tradingData.Where(t => block.Symbol == t.Symbol)))
             {
-                symbol.ArchiveProfit = blocks.Where(item => item.Symbol == symbol.Name).Sum(item => (item.ExecutedSellPrice - item.ExecutedBuyPrice) * item.NumShares);
+                tradeData.ArchiveProfit = blocks.Where(b => b.Symbol == tradeData.Symbol).Sum(b => (b.ExecutedSellPrice - b.ExecutedBuyPrice) * b.NumShares);
             }
 
             // Add in position data
@@ -82,20 +80,20 @@ namespace TradingService.TradingSymbol
 
             foreach (var position in positions)
             {
-                foreach (var symbol in symbols.Where(symbol => position.Symbol == symbol.Name))
+                foreach (var tradeData in tradingData.Where(t => position.Symbol == t.Symbol))
                 {
-                    symbol.CurrentQuantity = position.Quantity;
-                    symbol.CurrentProfit = position.UnrealizedProfitLoss;
+                    tradeData.CurrentQuantity = position.Quantity;
+                    tradeData.CurrentProfit = position.UnrealizedProfitLoss;
                 }
             }
 
             // Calculate total profit
-            foreach (var symbol in symbols)
+            foreach (var tradeData in tradingData)
             {
-                symbol.TotalProfit = symbol.CurrentProfit + symbol.ArchiveProfit;
+                tradeData.TotalProfit = tradeData.CurrentProfit + tradeData.ArchiveProfit;
             }
 
-            return new OkObjectResult(JsonConvert.SerializeObject(symbols));
+            return new OkObjectResult(JsonConvert.SerializeObject(tradingData));
         }
     }
 }
