@@ -21,5 +21,7 @@ namespace TradingService.TradingSymbol.Models
         public decimal CurrentProfit { get; set; }
         [JsonProperty(PropertyName = "archiveProfit")]
         public decimal ArchiveProfit { get; set; }
+        [JsonProperty(PropertyName = "totalProfit")]
+        public decimal TotalProfit { get; set; }
     }
 }

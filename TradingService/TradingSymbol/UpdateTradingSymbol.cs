@@ -12,9 +12,9 @@ using TradingService.TradingSymbol.Models;
 
 namespace TradingService.TradingSymbol
 {
-    public static class UpdateTradingSymbolOff
+    public static class UpdateTradingSymbol
     {
-        [FunctionName("UpdateTradingSymbolOff")]
+        [FunctionName("UpdateTradingSymbol")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
