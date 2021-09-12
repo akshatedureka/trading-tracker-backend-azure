@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -39,6 +40,21 @@ namespace TradingService.TradingSymbol
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
 
+            // Check if symbol is already created first
+            // Read symbols from Cosmos DB ToDo: Create central repo for queries
+            try
+            {
+                var existingSymbols = container.GetItemLinqQueryable<Symbol>(allowSynchronousQueryExecution: true).ToList();
+                if (existingSymbols.Any(symbolToCheck => symbolToCheck.Name == symbol))
+                {
+                    return new ConflictResult();
+                }
+            }
+            catch (CosmosException ex)
+            {
+                log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex);
+            }
+
             // Create new symbol to save
             var tradingSymbol = new Symbol()
             {
@@ -48,17 +64,17 @@ namespace TradingService.TradingSymbol
                 Active = true
             };
 
-            // Save block to Cosmos DB
+            // Save symbol to Cosmos DB
             try
             {
                 var blockResponse = await container.CreateItemAsync<Symbol>(tradingSymbol, new PartitionKey(tradingSymbol.Name));
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating Cosmos DB item {ex}", ex);
+                log.LogError("Issue creating new trading symbol in DB, {ex}", ex);
             }
 
-            return new OkResult();
+            return new OkObjectResult(tradingSymbol);
         }
     }
 }

@@ -9,6 +9,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.TradingSymbol.Models;
+using TradingService.TradingSymbol.Transfer;
 
 namespace TradingService.TradingSymbol
 {
@@ -20,8 +21,8 @@ namespace TradingService.TradingSymbol
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var symbol = JsonConvert.DeserializeObject<Symbol>(requestBody);
-            
+            var symbol = JsonConvert.DeserializeObject<SymbolTransfer>(requestBody);
+
             var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
 
             // The primary key for the Azure Cosmos account.
@@ -39,16 +40,28 @@ namespace TradingService.TradingSymbol
             // Update symbol in Cosmos DB
             try
             {
-                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.Name));
+                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.OldName));
                 var tradingSymbolToUpdate = tradingSymbolToUpdateResponse.Resource;
+                tradingSymbolToUpdate.Name = symbol.Name;
                 tradingSymbolToUpdate.Active = symbol.Active;
                 tradingSymbolToUpdate.Trading = symbol.Trading;
 
-                var updateBlockResponse = await container.ReplaceItemAsync<Symbol>(tradingSymbolToUpdate, symbol.Id, new PartitionKey(symbol.Name));
+                if (symbol.OldName != symbol.Name) // If changing partition key, you must delete and create a new symbol
+                {
+                    var deleteBlockResponse = await container.DeleteItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.OldName));
+                    tradingSymbolToUpdate.Id = Guid.NewGuid().ToString();
+                    tradingSymbolToUpdate.DateCreated = DateTime.Now;
+                    var createNewSymbol = await container.CreateItemAsync<Symbol>(tradingSymbolToUpdate, new PartitionKey(tradingSymbolToUpdate.Name));
+                }
+                else
+                {
+                    var updateSymbolResponse = await container.ReplaceItemAsync<Symbol>(tradingSymbolToUpdate, symbol.Id, new PartitionKey(symbol.Name));
+                }
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating Cosmos DB item {ex}", ex);
+                log.LogError("Error updating symbol in DB {ex}", ex);
+                return new BadRequestResult();
             }
 
             return new OkResult();
