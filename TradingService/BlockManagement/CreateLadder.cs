@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -7,23 +8,25 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using TradingService.TradingSymbol.Models;
+using Newtonsoft.Json;
+using TradingService.BlockManagement.Models;
 
-namespace TradingService.TradingSymbol
+namespace TradingService.BlockManagement
 {
-    public static class CreateTradingSymbol
+    public static class CreateLadder
     {
-        [FunctionName("CreateTradingSymbol")]
+        [FunctionName("CreateLadder")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            // Get symbol name
-            string symbol = req.Query["symbol"];
 
-            if (string.IsNullOrEmpty(symbol))
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var ladderData = JsonConvert.DeserializeObject<Ladder>(requestBody);
+
+            if (ladderData is null || string.IsNullOrEmpty(ladderData.Symbol))
             {
-                return new BadRequestObjectResult("Query parameter is null or empty.");
+                return new BadRequestObjectResult("Data body is null or empty.");
             }
 
             var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
@@ -33,50 +36,51 @@ namespace TradingService.TradingSymbol
 
             // The name of the database and container we will create
             var databaseId = "Tracker";
-            var containerId = "Symbols";
+            var containerId = "Ladders";
 
             // Connect to Cosmos DB using endpoint
             var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
+            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
 
-            // Check if symbol is already created first
-            // Read symbols from Cosmos DB ToDo: Create central repo for queries
+            // Check if block header is already created first
             try
             {
-                var existingSymbols = container.GetItemLinqQueryable<Symbol>(allowSynchronousQueryExecution: true).ToList();
-                if (existingSymbols.Any(symbolToCheck => symbolToCheck.Name == symbol))
+                var existingLadders = container.GetItemLinqQueryable<Ladder>(allowSynchronousQueryExecution: true).ToList();
+                if (existingLadders.Any(ladderToCheck => ladderToCheck.Symbol == ladderData.Symbol))
                 {
                     return new ConflictResult();
                 }
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex);
+                log.LogError("Issue reading existing ladders in DB {ex}", ex);
                 return new BadRequestResult();
             }
 
-            // Create new symbol to save
-            var tradingSymbol = new Symbol()
+            // Create new ladder to save
+            var ladder = new Ladder()
             {
                 Id = Guid.NewGuid().ToString(),
                 DateCreated = DateTime.Now,
-                Name = symbol,
-                Active = true
+                Symbol = ladderData.Symbol,
+                InitialNumShares = ladderData.InitialNumShares,
+                BuyPercentage = ladderData.BuyPercentage,
+                SellPercentage = ladderData.SellPercentage
             };
 
             // Save symbol to Cosmos DB
             try
             {
-                var blockResponse = await container.CreateItemAsync<Symbol>(tradingSymbol, new PartitionKey(tradingSymbol.Name));
+                var blockHeaderResponse = await container.CreateItemAsync<Ladder>(ladder, new PartitionKey(ladder.Symbol));
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating new trading symbol in DB, {ex}", ex);
+                log.LogError("Issue creating new ladder in DB, {ex}", ex);
                 return new BadRequestResult();
             }
 
-            return new OkObjectResult(tradingSymbol);
+            return new OkObjectResult(ladder);
         }
     }
 }
