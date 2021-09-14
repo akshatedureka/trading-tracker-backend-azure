@@ -10,22 +10,24 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.BlockManagement.Models;
+using TradingService.TradingSymbol.Models;
+using TradingService.TradingSymbol.Transfer;
 
 namespace TradingService.BlockManagement
 {
-    public static class DeleteLadder
+    public static class UpdateLadder
     {
-        [FunctionName("DeleteLadder")]
+        [FunctionName("UpdateLadder")]
         public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var ladder = JsonConvert.DeserializeObject<Ladder>(requestBody);
-            
-            if (ladder is null || string.IsNullOrEmpty(ladder.Symbol) || string.IsNullOrEmpty(ladder.Id))
+
+            if (ladder is null || string.IsNullOrEmpty(ladder.Symbol))
             {
-                return new BadRequestObjectResult("Ladder is null or empty.");
+                return new BadRequestObjectResult("Data body is null or empty during ladder update request.");
             }
 
             var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
@@ -42,21 +44,23 @@ namespace TradingService.BlockManagement
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
 
-            // Delete ladder from Cosmos DB
+            // Update ladder in Cosmos DB
             try
             {
-                var deleteLadderResponse = await container.DeleteItemAsync<Ladder>(ladder.Id, new PartitionKey(ladder.Symbol));
-                return new OkObjectResult(ladder.ToString());
+                var ladderToUpdateResponse =
+                    await container.ReadItemAsync<Ladder>(ladder.Id, new PartitionKey(ladder.Symbol));
+                var ladderToUpdate = ladderToUpdateResponse.Resource;
+                ladderToUpdate.InitialNumShares = ladder.InitialNumShares;
+                ladderToUpdate.BuyPercentage = ladder.BuyPercentage;
+                ladderToUpdate.SellPercentage = ladder.SellPercentage;
+                var updateLadderResponse =
+                    await container.ReplaceItemAsync<Ladder>(ladderToUpdate, ladder.Id,
+                        new PartitionKey(ladder.Symbol));
+                return new OkObjectResult(updateLadderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue deleting ladder from Cosmos DB {ex}", ex);
-
-                if (ex.StatusCode == HttpStatusCode.NotFound)
-                {
-                    return new NotFoundResult();
-                }
-                   
+                log.LogError("Error updating ladder in DB: {ex}", ex);
                 return new BadRequestResult();
             }
         }

@@ -38,7 +38,7 @@ namespace TradingService.BlockManagement
 
             // The name of the database and container we will create
             var databaseId = "Tracker";
-            var containerId = "NewBlocks";
+            var containerId = "Blocks";
             var containerLaddersId = "Ladders";
             
             // Connect to Cosmos DB using endpoint
@@ -89,15 +89,13 @@ namespace TradingService.BlockManagement
                 var ladderToUpdate = ladderToUpdateResponse.Resource;
                 ladderToUpdate.BlocksCreated = false;
                 var updateLadderResponse = await containerLadders.ReplaceItemAsync<Ladder>(ladderToUpdate, ladderToUpdate.Id, new PartitionKey(ladderToUpdate.Symbol));
+                return new OkObjectResult(updateLadderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
                 log.LogError("Error updating ladder to indicate blocks have been created: {ex}", ex);
                 return new BadRequestResult();
             }
-
-
-            return new OkResult();
         }
     }
 }

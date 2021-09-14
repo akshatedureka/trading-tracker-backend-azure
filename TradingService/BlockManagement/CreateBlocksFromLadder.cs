@@ -28,14 +28,23 @@ namespace TradingService.BlockManagement
 
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var ladderData = JsonConvert.DeserializeObject<Ladder>(requestBody);
+            var currentPrice = 0.0m;
 
             if (ladderData is null || string.IsNullOrEmpty(ladderData.Symbol))
             {
                 return new BadRequestObjectResult("Data body is null or empty.");
             }
-
-            var currentPrice = await Order.GetCurrentPrice(ladderData.Symbol);
-
+            
+            try
+            {
+                currentPrice = await Order.GetCurrentPrice(ladderData.Symbol);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue getting current price {ex}", ex);
+                return new BadRequestObjectResult(ex.Message);
+            }
+            
             // Calculate initial num shares
             // ToDo: Use buying power to calculate percentage to get num shares
             var initialConfidenceLevel = 1;
@@ -51,7 +60,7 @@ namespace TradingService.BlockManagement
 
             // The name of the database and container we will create
             var databaseId = "Tracker";
-            var containerId = "NewBlocks";
+            var containerId = "Blocks";
             var containerLaddersId = "Ladders";
 
             // Connect to Cosmos DB using endpoint
@@ -96,14 +105,13 @@ namespace TradingService.BlockManagement
                 var ladderToUpdate = ladderToUpdateResponse.Resource;
                 ladderToUpdate.BlocksCreated = true;
                 var updateLadderResponse = await containerLadders.ReplaceItemAsync<Ladder>(ladderToUpdate, ladderToUpdate.Id, new PartitionKey(ladderToUpdate.Symbol));
+                return new OkObjectResult(updateLadderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
                 log.LogError("Error updating ladder to indicate blocks have been created: {ex}", ex);
                 return new BadRequestResult();
             }
-
-            return new OkResult();
         }
 
         private static List<BlockPrices> GenerateBlockPrices(decimal currentPrice, decimal buyPercentage, decimal sellPercentage)

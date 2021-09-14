@@ -66,21 +66,21 @@ namespace TradingService.BlockManagement
                 Symbol = ladderData.Symbol,
                 InitialNumShares = ladderData.InitialNumShares,
                 BuyPercentage = ladderData.BuyPercentage,
-                SellPercentage = ladderData.SellPercentage
+                SellPercentage = ladderData.SellPercentage,
+                BlocksCreated = false
             };
 
-            // Save symbol to Cosmos DB
+            // Save ladder to Cosmos DB
             try
             {
                 var blockHeaderResponse = await container.CreateItemAsync<Ladder>(ladder, new PartitionKey(ladder.Symbol));
+                return new OkObjectResult(blockHeaderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
                 log.LogError("Issue creating new ladder in DB, {ex}", ex);
                 return new BadRequestResult();
             }
-
-            return new OkObjectResult(ladder);
         }
     }
 }
