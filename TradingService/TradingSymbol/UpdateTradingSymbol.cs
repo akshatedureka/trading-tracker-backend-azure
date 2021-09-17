@@ -23,6 +23,13 @@ namespace TradingService.TradingSymbol
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var symbol = JsonConvert.DeserializeObject<SymbolTransfer>(requestBody);
 
+            if (symbol is null || string.IsNullOrEmpty(symbol.Name))
+            {
+                return new BadRequestObjectResult("Data body is null or empty during symbol update request.");
+            }
+
+            var symbolNameToUpdate = symbol.OldName is null ? symbol.Name : symbol.OldName;
+
             var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
 
             // The primary key for the Azure Cosmos account.
@@ -40,13 +47,13 @@ namespace TradingService.TradingSymbol
             // Update symbol in Cosmos DB
             try
             {
-                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.OldName));
+                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<Symbol>(symbol.Id, new PartitionKey(symbolNameToUpdate));
                 var tradingSymbolToUpdate = tradingSymbolToUpdateResponse.Resource;
                 tradingSymbolToUpdate.Name = symbol.Name;
                 tradingSymbolToUpdate.Active = symbol.Active;
                 tradingSymbolToUpdate.Trading = symbol.Trading;
 
-                if (symbol.OldName != symbol.Name) // If changing partition key, you must delete and create a new symbol
+                if (symbol.OldName != null && symbol.OldName != symbol.Name) // If changing partition key, you must delete and create a new symbol
                 {
                     var deleteBlockResponse = await container.DeleteItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.OldName));
                     tradingSymbolToUpdate.Id = Guid.NewGuid().ToString();

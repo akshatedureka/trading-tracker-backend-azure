@@ -36,13 +36,28 @@ namespace TradingService.ManageOrders
 
             // Get symbol name
             string symbol = req.Query["symbol"];
-            var block = await Order.CloseOpenPositionAndCancelExistingOrders(symbol);
 
-            // ToDo: Move archive block to common module
-            await ArchiveBlock(block, block.ExecutedSellPrice);
-            log.LogInformation("Created archive record for block id {block.Id} at: {time}", block.Id, DateTimeOffset.Now);
+            try
+            {
+                var block = await Order.CloseOpenPositionAndCancelExistingOrders(symbol);
+                if (block is null)
+                {
+                    Console.WriteLine("Error closing open positions");
+                    return new BadRequestObjectResult("There are no open positions.");
+                }
+
+                // ToDo: Move archive block to common module
+                await ArchiveBlock(block, block.ExecutedSellPrice);
+                log.LogInformation("Created archive record for block id {block.Id} at: {time}", block.Id, DateTimeOffset.Now);
+
+                return new OkResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return new BadRequestObjectResult(ex.Message);
+            }
             
-            return new OkResult();
         }
 
         private static async Task ArchiveBlock(Block block, decimal executedSellPrice)

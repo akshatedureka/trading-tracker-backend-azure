@@ -64,6 +64,12 @@ namespace TradingService.Common.Order
             return new Guid();
         }
 
+        public static async Task<Guid> CreateTakeProfitOrder(OrderSide orderSide, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice)
+        {
+            var order = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).TakeProfit(takeProfitPrice));
+            return order.OrderId;
+        }
+
         public static async Task<decimal> GetCurrentPrice(string symbol)
         {
             try
@@ -171,8 +177,8 @@ namespace TradingService.Common.Order
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error while canceling order in Alpaca {e}: ", e);
-                throw;
+                Console.WriteLine($"Error while canceling orders / closing positions in Alpaca {e}: ", e);
+                return null;
             }
         }
     }

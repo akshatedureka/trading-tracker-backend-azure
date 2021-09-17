@@ -92,7 +92,7 @@ namespace TradingService.UpdateBlockFromQueueMsg
             await CreateBuyOrderBelowIfNotCreated(block.Id, block.Symbol);
 
             // Sell off at a loss for block 10 blocks above
-            await CreateMarketOrderIfBlockAboveInDowntrend(block.Id, block.Symbol);
+            //await CreateMarketOrderIfBlockAboveInDowntrend(block.Id, block.Symbol);
 
         }
 
@@ -114,7 +114,7 @@ namespace TradingService.UpdateBlockFromQueueMsg
 
             // Create a new buy limit order in Alpaca for replacement
             // Up the number of shares each time a block gets replaced as confidence goes up
-            block.NumShares += 5;
+            //block.NumShares += 5;
 
             if (block.NumShares > MaxNumShares)
             {
@@ -209,7 +209,7 @@ namespace TradingService.UpdateBlockFromQueueMsg
             if (!blockAbove.BuyOrderCreated)
             {
                 // Up the number of shares each time a order is created going up
-                blockAbove.NumShares += 5;
+                //blockAbove.NumShares += 5;
 
                 if (blockAbove.NumShares > MaxNumShares)
                 {

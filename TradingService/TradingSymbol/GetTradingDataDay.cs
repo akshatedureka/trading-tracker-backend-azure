@@ -9,16 +9,15 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Linq;
 using TradingService.Common.Order;
 using TradingService.TradingSymbol.Models;
 using TradingService.Common.Models;
 
 namespace TradingService.TradingSymbol
 {
-    public static class GetTradingData
+    public static class GetTradingDataDay
     {
-        [FunctionName("GetTradingData")]
+        [FunctionName("GetTradingDataDay")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
             ILogger log)
