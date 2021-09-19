@@ -64,10 +64,11 @@ namespace TradingService.Common.Order
             return new Guid();
         }
 
-        public static async Task<Guid> CreateTakeProfitOrder(OrderSide orderSide, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice)
+        public static async Task<Guid> CreateBracketOrder(OrderSide orderSide, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
-            var order = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).TakeProfit(takeProfitPrice));
-            return order.OrderId;
+            //var order = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).TakeProfit(takeProfitPrice));
+            var bracketOrder = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
+            return bracketOrder.OrderId;
         }
 
         public static async Task<decimal> GetCurrentPrice(string symbol)

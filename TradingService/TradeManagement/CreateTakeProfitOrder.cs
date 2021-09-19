@@ -31,9 +31,11 @@ namespace TradingService.TradeManagement
             var stopPrice = currentPrice + (decimal) 0.05;
             var limitPrice = stopPrice + (decimal) 0.01; 
             var takeProfitLimitPrice = limitPrice + (decimal) 0.01;
+            var stopLossPrice = limitPrice - (decimal) 0.05;
 
             // every one minute, cancel and do a new order if not filled to reset price
-            var orderId = await Order.CreateTakeProfitOrder(OrderSide.Buy, name, 100, stopPrice, limitPrice, takeProfitLimitPrice);
+            var orderId = await Order.CreateBracketOrder(OrderSide.Buy, name, 100, stopPrice, limitPrice, takeProfitLimitPrice, stopLossPrice);
+            log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", name, limitPrice);
 
             string responseMessage = string.IsNullOrEmpty(name)
                 ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
