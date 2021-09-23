@@ -47,7 +47,7 @@ namespace TradingService.ManageOrders
                 }
 
                 // ToDo: Move archive block to common module
-                await ArchiveBlock(block, block.ExecutedSellPrice);
+                await ArchiveBlock(block, block.SellOrderFilledPrice);
                 log.LogInformation("Created archive record for block id {block.Id} at: {time}", block.Id, DateTimeOffset.Now);
 
                 return new OkResult();
@@ -66,7 +66,7 @@ namespace TradingService.ManageOrders
             var archiveBlockJson = JsonConvert.SerializeObject(block);
             var archiveBlock = JsonConvert.DeserializeObject<Block>(archiveBlockJson); //deep copy object
             archiveBlock.Id = Guid.NewGuid().ToString();
-            archiveBlock.ExecutedSellPrice = executedSellPrice;
+            archiveBlock.SellOrderFilledPrice = executedSellPrice;
 
             await _containerArchive.CreateItemAsync<Block>(archiveBlock, new PartitionKey(archiveBlock.Symbol));
         }

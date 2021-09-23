@@ -67,6 +67,7 @@ namespace TradingService.BlockManagement
                 InitialNumShares = ladderData.InitialNumShares,
                 BuyPercentage = ladderData.BuyPercentage,
                 SellPercentage = ladderData.SellPercentage,
+                StopLossPercentage = ladderData.StopLossPercentage,
                 BlocksCreated = false
             };
 

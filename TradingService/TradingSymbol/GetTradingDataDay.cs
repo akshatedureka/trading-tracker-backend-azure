@@ -71,7 +71,7 @@ namespace TradingService.TradingSymbol
 
             foreach (var tradeData in blocks.SelectMany(block => tradingData.Where(t => block.Symbol == t.Symbol)))
             {
-                tradeData.ArchiveProfit = blocks.Where(b => b.Symbol == tradeData.Symbol).Sum(b => (b.ExecutedSellPrice - b.ExecutedBuyPrice) * b.NumShares);
+                tradeData.ArchiveProfit = blocks.Where(b => b.Symbol == tradeData.Symbol).Sum(b => (b.SellOrderFilledPrice - b.BuyOrderFilledPrice) * b.NumShares);
             }
 
             // Add in position data

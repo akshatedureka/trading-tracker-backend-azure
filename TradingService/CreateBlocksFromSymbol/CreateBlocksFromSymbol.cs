@@ -69,7 +69,8 @@ namespace TradingService.CreateBlocksFromSymbol
                     NumShares = initialNumShares,
                     ConfidenceLevel = initialConfidenceLevel,
                     BuyOrderPrice = blockPrice.BuyPrice,
-                    SellOrderPrice = blockPrice.SellPrice
+                    SellOrderPrice = blockPrice.SellPrice,
+                    DayBlock = false
                 };
 
                 // Save block to Cosmos DB

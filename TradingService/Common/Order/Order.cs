@@ -64,11 +64,30 @@ namespace TradingService.Common.Order
             return new Guid();
         }
 
-        public static async Task<Guid> CreateBracketOrder(OrderSide orderSide, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
+        public static async Task<BracketOrderIds> CreateLimitBracketOrder(OrderSide orderSide, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
-            //var order = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).TakeProfit(takeProfitPrice));
+            var bracketOrder = await AlpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
+
+            return new BracketOrderIds
+            {
+                BuyOrderId = bracketOrder.OrderId,
+                SellOrderId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
+                StopLossOrderId =
+                    bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
+            };
+        }
+
+        public static async Task<BracketOrderIds> CreateStopLimitBracketOrder(OrderSide orderSide, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
+        {
             var bracketOrder = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
-            return bracketOrder.OrderId;
+
+            return new BracketOrderIds
+            {
+                BuyOrderId = bracketOrder.OrderId,
+                SellOrderId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
+                StopLossOrderId =
+                    bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
+            };
         }
 
         public static async Task<decimal> GetCurrentPrice(string symbol)
@@ -76,7 +95,23 @@ namespace TradingService.Common.Order
             try
             {
                 var latestTrade = await AlpacaDataClient.GetLatestTradeAsync(symbol);
+                var snapshot = await AlpacaDataClient.GetSnapshotAsync("CRCT");
+                var previousClose = snapshot.PreviousDailyBar.Close;
                 return latestTrade.Price;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public static async Task<decimal> GetPreviousDayClose(string symbol)
+        {
+            try
+            {
+                var snapshot = await AlpacaDataClient.GetSnapshotAsync(symbol);
+                return snapshot.PreviousDailyBar.Close;
             }
             catch (Exception e)
             {
@@ -168,10 +203,11 @@ namespace TradingService.Common.Order
                     Symbol = result.Symbol,
                     NumShares = result.IntegerQuantity,
                     DateCreated = DateTime.Now,
-                    ExecutedBuyPrice = positionData.AverageEntryPrice,
-                    ExecutedSellPrice = positionData.AssetCurrentPrice,
+                    BuyOrderFilledPrice = positionData.AverageEntryPrice,
+                    SellOrderFilledPrice = positionData.AssetCurrentPrice,
                     ExternalSellOrderId = result.OrderId,
                     ExternalBuyOrderId = Guid.NewGuid(),
+                    DayBlock = false
                 };
 
                 return block;

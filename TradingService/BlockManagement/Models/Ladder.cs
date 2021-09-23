@@ -17,6 +17,8 @@ namespace TradingService.BlockManagement.Models
         public decimal BuyPercentage { get; set; }
         [JsonProperty(PropertyName = "sellPercentage")]
         public decimal SellPercentage { get; set; }
+        [JsonProperty(PropertyName = "stopLossPercentage")]
+        public decimal StopLossPercentage { get; set; }
         [JsonProperty(PropertyName = "blocksCreated")]
         public bool BlocksCreated { get; set; }
 

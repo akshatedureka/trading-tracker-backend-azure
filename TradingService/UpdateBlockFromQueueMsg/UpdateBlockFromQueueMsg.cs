@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.WebJobs;
@@ -62,38 +61,30 @@ namespace TradingService.UpdateBlockFromQueueMsg
             var block = await GetBlockByExternalBuyOrderId(externalOrderId);
             if (block == null)
             {
-                _log.LogError("Could not find block for external buy order id {externalOrderId}!", externalOrderId);
+                _log.LogError("Could not find block for external buy order id {externalOrderId} at: {time}", externalOrderId, DateTimeOffset.Now);
                 return;
             }
             _log.LogInformation("Buy order has been executed for block id {id}, external buy id {externalOrderId} at: {time}", block.Id, externalOrderId, DateTimeOffset.Now);
-            
-            // Create a sell order in Alpaca after the buy order has been executed
-            var sellOrderId = await Order.CreateNewOrder(OrderSide.Sell, OrderType.Limit, block.Symbol, block.NumShares,
-                block.SellOrderPrice);
-
-            _log.LogInformation("Sell order has been created for block id {id}, external sell id {sellOrderId} at: {time}", block.Id, sellOrderId, DateTimeOffset.Now);
-            
             // Update with external buy id generated from Alpaca
-            block.BuyOrderExecuted = true;
-            block.DateBuyOrderExecuted = DateTime.Now;
-            block.ExecutedBuyPrice = executedBuyPrice;
-            block.ExternalSellOrderId = sellOrderId;
+            block.BuyOrderFilled = true;
+            block.DateBuyOrderFilled = DateTime.Now;
+            block.BuyOrderFilledPrice = executedBuyPrice;
             block.SellOrderCreated = true;
             //TESTblock.ExternalSellOrderId = new Guid("00000000-0000-0000-0000-000000000002");
 
             // Replace the item with the updated content
             var blockReplaceResponse = await _container.ReplaceItemAsync<Block>(block, block.Id, new PartitionKey(block.Symbol));
-            _log.LogInformation("Saved block id {blockId} to DB with updated sell order id {sellOrderId} at: {time}", block.Id, sellOrderId, DateTimeOffset.Now);
+            _log.LogInformation("Saved block id {blockId} to DB with sell order created flag to true at: {time}", block.Id, DateTimeOffset.Now);
             
-            // Check if buy order above current block has been created, if not, create it
-            await CreateBuyOrderAboveIfNotCreated(block.Id, block.Symbol);
+            if (!block.DayBlock)
+            {
+                // Check if buy order above current block has been created, if not, create it
+                await CreateBuyOrderAboveIfNotCreated(block.Id, block.Symbol);
 
-            // Check if buy order below current block has been created, if not, create it
-            await CreateBuyOrderBelowIfNotCreated(block.Id, block.Symbol);
+                // Check if buy order below current block has been created, if not, create it
+                await CreateBuyOrderBelowIfNotCreated(block.Id, block.Symbol);
 
-            // Sell off at a loss for block 10 blocks above
-            //await CreateMarketOrderIfBlockAboveInDowntrend(block.Id, block.Symbol);
-
+            }
         }
 
         private static async Task UpdateSellOrderExecuted(Guid externalOrderId, decimal executedSellPrice)
@@ -102,7 +93,7 @@ namespace TradingService.UpdateBlockFromQueueMsg
             var block = await GetBlockByExternalSellOrderId(externalOrderId);
             if (block == null)
             {
-                _log.LogError("Could not find block for external sell order id {externalOrderId}!", externalOrderId);
+                _log.LogError("Could not find block for external sell order id {externalOrderId} at: {time}", externalOrderId, DateTimeOffset.Now);
                 return;
             }
 
@@ -116,29 +107,37 @@ namespace TradingService.UpdateBlockFromQueueMsg
             // Up the number of shares each time a block gets replaced as confidence goes up
             //block.NumShares += 5;
 
-            if (block.NumShares > MaxNumShares)
+            //if (block.NumShares > MaxNumShares)
+            //{
+            //    block.NumShares = MaxNumShares;
+            //}
+
+            if (!block.DayBlock)
             {
-                block.NumShares = MaxNumShares;
+                var orderIds = await Order.CreateLimitBracketOrder(OrderSide.Buy, block.Symbol, block.NumShares,
+                    block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                _log.LogInformation(
+                    "Replacement buy order created for block id {id}, symbol {symbol}, external buy id {externalBuyId}, external sell id {externalSellId}, external stop id {externalStopId} and saved to DB at: {time}",
+                    block.Id, block.Symbol, orderIds.BuyOrderId, orderIds.SellOrderId, orderIds.StopLossOrderId, DateTimeOffset.Now);
+
+                // Reset block
+                //TESTblock.ExternalBuyOrderId = new Guid("00000000-0000-0000-0000-000000000001");
+                block.ExternalBuyOrderId = orderIds.BuyOrderId;
+                block.ExternalSellOrderId = orderIds.SellOrderId;
+                block.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                block.BuyOrderFilled = false;
+                block.BuyOrderFilledPrice = 0;
+                block.DateBuyOrderFilled = DateTime.MinValue;
+                block.SellOrderCreated = false;
+                block.SellOrderFilledPrice = 0;
+
+                // Replace the item with the updated content
+                var blockReplaceResponse =
+                    await _container.ReplaceItemAsync<Block>(block, block.Id, new PartitionKey(block.Symbol));
+
+                _log.LogInformation("Block reset for block id {id} symbol {symbol} and saved to DB at: {time}", block.Id, block.Symbol,
+                    DateTimeOffset.Now);
             }
-
-            var orderId = await Order.CreateNewOrder(OrderSide.Buy, OrderType.Limit, block.Symbol, block.NumShares,
-                block.BuyOrderPrice);
-            _log.LogInformation("Replacement buy order created for block id {id}, external id {externalId} and saved to DB at: {time}", block.Id, orderId, DateTimeOffset.Now);
-
-
-            // Reset block
-            //TESTblock.ExternalBuyOrderId = new Guid("00000000-0000-0000-0000-000000000001");
-            block.ExternalBuyOrderId = orderId;
-            block.BuyOrderExecuted = false;
-            block.ExecutedBuyPrice = 0;
-            block.DateBuyOrderExecuted = DateTime.MinValue;
-            block.SellOrderCreated = false;
-            block.ExecutedSellPrice = 0;
-
-            // Replace the item with the updated content
-            var blockReplaceResponse = await _container.ReplaceItemAsync<Block>(block, block.Id, new PartitionKey(block.Symbol));
-
-            _log.LogInformation("Block reset for block id {id} and saved to DB at: {time}", block.Id, DateTimeOffset.Now);
         }
 
         private static async Task<Block> GetBlockByExternalBuyOrderId(Guid externalOrderId)
@@ -170,7 +169,7 @@ namespace TradingService.UpdateBlockFromQueueMsg
             try
             {
                 using var setIterator = _container.GetItemLinqQueryable<Block>()
-                    .Where(b => b.ExternalSellOrderId == externalOrderId)
+                    .Where(b => b.ExternalSellOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId)
                     .ToFeedIterator();
                 while (setIterator.HasMoreResults)
                 {
@@ -200,10 +199,10 @@ namespace TradingService.UpdateBlockFromQueueMsg
 
         private static async Task CreateBuyOrderAboveIfNotCreated(string currentBlockId, string symbol)
         {
-            // ToDo: If going up, increase num shares, if going down, reduce num shares
             // Get block above and create new buy order if no order has been created, adjust number of shares up since going up (put more in on uptrend)
             var blockAboveId = (Convert.ToInt64(currentBlockId) + 1);
             var blockAbove = await GetBlockById(blockAboveId, symbol);
+            var stopPrice = blockAbove.BuyOrderPrice - (decimal)0.01;
 
             // If no buy order has been created, create one
             if (!blockAbove.BuyOrderCreated)
@@ -211,22 +210,24 @@ namespace TradingService.UpdateBlockFromQueueMsg
                 // Up the number of shares each time a order is created going up
                 //blockAbove.NumShares += 5;
 
-                if (blockAbove.NumShares > MaxNumShares)
-                {
-                    blockAbove.NumShares = MaxNumShares;
-                }
+                //if (blockAbove.NumShares > MaxNumShares)
+                //{
+                //    blockAbove.NumShares = MaxNumShares;
+                //}
 
                 // Create new buy order
-                var buyOrderId = await Order.CreateNewOrder(OrderSide.Buy, OrderType.StopLimit, blockAbove.Symbol, blockAbove.NumShares,
-                    blockAbove.BuyOrderPrice);
+                var orderIds = await Order.CreateStopLimitBracketOrder(OrderSide.Buy, symbol, blockAbove.NumShares, stopPrice, blockAbove.BuyOrderPrice, blockAbove.SellOrderPrice, blockAbove.StopLossOrderPrice);
+                _log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", symbol, blockAbove.BuyOrderPrice);
 
                 // Replace Cosmos DB document, update with external buy id generated from Alpaca
-                blockAbove.ExternalBuyOrderId = buyOrderId;
+                blockAbove.ExternalBuyOrderId = orderIds.BuyOrderId;
+                blockAbove.ExternalSellOrderId = orderIds.SellOrderId;
+                blockAbove.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                 blockAbove.BuyOrderCreated = true;
 
                 var updateBlockResponse = await _container.ReplaceItemAsync<Block>(blockAbove, blockAbove.Id, new PartitionKey(blockAbove.Symbol));
-                _log.LogInformation($"A new buy order has been placed for block id {blockAbove.Id}. The external order id is {buyOrderId}",
-                    blockAbove.Id, buyOrderId);
+                _log.LogInformation($"A new buy order has been placed for block id {blockAbove.Id}. The external order id is { blockAbove.ExternalBuyOrderId}",
+                    blockAbove.Id, blockAbove.ExternalBuyOrderId);
             }
         }
 
@@ -240,20 +241,19 @@ namespace TradingService.UpdateBlockFromQueueMsg
             if (!blockBelow.BuyOrderCreated)
             {
                 // Create new buy order
-                var buyOrderId = await Order.CreateNewOrder(OrderSide.Buy, OrderType.StopLimit, blockBelow.Symbol,
-                    blockBelow.NumShares,
-                    blockBelow.BuyOrderPrice);
+                var orderIds = await Order.CreateLimitBracketOrder(OrderSide.Buy, symbol, blockBelow.NumShares, blockBelow.BuyOrderPrice, blockBelow.SellOrderPrice, blockBelow.StopLossOrderPrice);
 
                 // Replace Cosmos DB document, update with external buy id generated from Alpaca
-                //var itemBody = blockAbove.Resource;
-                blockBelow.ExternalBuyOrderId = buyOrderId;
+                blockBelow.ExternalBuyOrderId = orderIds.BuyOrderId;
+                blockBelow.ExternalSellOrderId = orderIds.SellOrderId;
+                blockBelow.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                 blockBelow.BuyOrderCreated = true;
 
                 var updateBlockResponse = await _container.ReplaceItemAsync<Block>(blockBelow, blockBelow.Id,
                     new PartitionKey(blockBelow.Symbol));
                 _log.LogInformation(
-                    $"A new buy order has been placed for block id {blockBelow.Id}. The external order id is {buyOrderId}",
-                    blockBelow.Id, buyOrderId);
+                    $"A new buy order has been placed for block id {blockBelow.Id}. The external order id is {blockBelow.ExternalBuyOrderId}",
+                    blockBelow.Id, blockBelow.ExternalBuyOrderId);
             }
         }
 
@@ -263,43 +263,10 @@ namespace TradingService.UpdateBlockFromQueueMsg
             var archiveBlockJson = JsonConvert.SerializeObject(block);
             var archiveBlock = JsonConvert.DeserializeObject<Block>(archiveBlockJson); //deep copy object
             archiveBlock.Id = Guid.NewGuid().ToString();
-            archiveBlock.ExecutedSellPrice = executedSellPrice;
+            archiveBlock.SellOrderFilledPrice = executedSellPrice;
 
             await _containerArchive.CreateItemAsync<Block>(archiveBlock, new PartitionKey(archiveBlock.Symbol));
         }
 
-        private static async Task CreateMarketOrderIfBlockAboveInDowntrend(string currentBlockId, string symbol)
-        {
-            const int numBlocksAboveThreshold = 20; // ToDo: 3% for now, test and check if this is a good value
-
-            // Get block above and create new buy order if no order has been created, adjust number of shares up since going up (put more in on uptrend)
-            var blockAboveId = (Convert.ToInt64(currentBlockId) + numBlocksAboveThreshold);
-            var blockAboveThreshold = await GetBlockById(blockAboveId, symbol);
-            
-            if (blockAboveThreshold.SellOrderCreated)
-            {
-                // First cancel existing sell order
-                var blockAboveExternalOrderId = blockAboveThreshold.ExternalSellOrderId;
-                var isCanceled = await Order.CancelOrder(blockAboveExternalOrderId);
-
-                if (isCanceled)
-                {
-                    // Create new market sell order
-                    var sellOrderId = await Order.CreateNewOrder(OrderSide.Sell, OrderType.Market, blockAboveThreshold.Symbol, blockAboveThreshold.NumShares,
-                        blockAboveThreshold.SellOrderPrice);
-
-                    // Replace Cosmos DB document, update with external buy id generated from Alpaca
-                    blockAboveThreshold.ExternalSellOrderId = sellOrderId;
-
-                    var updateBlockResponse = await _container.ReplaceItemAsync<Block>(blockAboveThreshold, blockAboveThreshold.Id, new PartitionKey(blockAboveThreshold.Symbol));
-                    _log.LogInformation($"A market sell order has been placed for symbol {symbol}, block id {blockAboveThreshold.Id}. The external order id is {sellOrderId}",
-                        symbol, blockAboveThreshold.Id, sellOrderId);
-                }
-                else
-                {
-                    _log.LogError($"Failure creating market order for symbol {symbol}, block id {blockAboveThreshold.Id}.", symbol, blockAboveThreshold.Id);
-                }
-            }
-        }
     }
 }

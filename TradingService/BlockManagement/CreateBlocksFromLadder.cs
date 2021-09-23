@@ -50,7 +50,7 @@ namespace TradingService.BlockManagement
             var initialConfidenceLevel = 1;
             
             // Create blocks (order by buy price ascending)
-            var blockPrices = GenerateBlockPrices(currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage).OrderBy(p => p.BuyPrice);
+            var blockPrices = GenerateBlockPrices(currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage, ladderData.StopLossPercentage).OrderBy(p => p.BuyPrice);
 
             // The Azure Cosmos DB endpoint for running this sample.
             var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
@@ -81,7 +81,9 @@ namespace TradingService.BlockManagement
                     NumShares = ladderData.InitialNumShares,
                     ConfidenceLevel = initialConfidenceLevel,
                     BuyOrderPrice = blockPrice.BuyPrice,
-                    SellOrderPrice = blockPrice.SellPrice
+                    SellOrderPrice = blockPrice.SellPrice,
+                    StopLossOrderPrice = blockPrice.StopLossPrice,
+                    DayBlock = false
                 };
 
                 // Save blocks to Cosmos DB
@@ -114,7 +116,7 @@ namespace TradingService.BlockManagement
             }
         }
 
-        private static List<BlockPrices> GenerateBlockPrices(decimal currentPrice, decimal buyPercentage, decimal sellPercentage)
+        private static List<BlockPrices> GenerateBlockPrices(decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
             const int numBlocks = 200;
@@ -124,7 +126,8 @@ namespace TradingService.BlockManagement
             {
                 var buyPrice = currentPrice + (i * (buyPercentage / 100) * currentPrice);
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
-                var blockItemUp = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice };
+                var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
+                var blockItemUp = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
                 blockPrices.Add(blockItemUp);
             }
 
@@ -133,7 +136,8 @@ namespace TradingService.BlockManagement
             {
                 var buyPrice = currentPrice - (i * (buyPercentage / 100) * currentPrice);
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
-                var blockItemDown = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice };
+                var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
+                var blockItemDown = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice};
                 blockPrices.Add(blockItemDown);
             }
 

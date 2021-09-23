@@ -53,6 +53,8 @@ namespace TradingService.BlockManagement
                 ladderToUpdate.InitialNumShares = ladder.InitialNumShares;
                 ladderToUpdate.BuyPercentage = ladder.BuyPercentage;
                 ladderToUpdate.SellPercentage = ladder.SellPercentage;
+                ladderToUpdate.StopLossPercentage = ladder.StopLossPercentage;
+
                 var updateLadderResponse =
                     await container.ReplaceItemAsync<Ladder>(ladderToUpdate, ladder.Id,
                         new PartitionKey(ladder.Symbol));

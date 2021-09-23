@@ -19,22 +19,32 @@ namespace TradingService.Common.Models
         public Guid ExternalBuyOrderId { get; set; }
         [JsonProperty(PropertyName = "externalSellOrderId")]
         public Guid ExternalSellOrderId { get; set; }
+        [JsonProperty(PropertyName = "externalStopLossOrderId")]
+        public Guid ExternalStopLossOrderId { get; set; }
         [JsonProperty(PropertyName = "buyOrderCreated")]
         public bool BuyOrderCreated { get; set; }
         [JsonProperty(PropertyName = "buyOrderPrice")]
         public decimal BuyOrderPrice { get; set; }
-        [JsonProperty(PropertyName = "buyOrderExecuted")]
-        public bool BuyOrderExecuted { get; set; }
-        [JsonProperty(PropertyName = "executedBuyPrice")]
-        public decimal ExecutedBuyPrice { get; set; }
-        [JsonProperty(PropertyName = "dateBuyOrderExecuted")]
-        public DateTime DateBuyOrderExecuted { get; set; }
+        [JsonProperty(PropertyName = "buyOrderFilled")]
+        public bool BuyOrderFilled { get; set; }
+        [JsonProperty(PropertyName = "buyOrderFilledPrice")]
+        public decimal BuyOrderFilledPrice { get; set; }
+        [JsonProperty(PropertyName = "dateBuyOrderFilled")]
+        public DateTime DateBuyOrderFilled { get; set; }
         [JsonProperty(PropertyName = "sellOrderCreated")]
         public bool SellOrderCreated { get; set; }
         [JsonProperty(PropertyName = "sellOrderPrice")]
         public decimal SellOrderPrice { get; set; }
-        [JsonProperty(PropertyName = "executedSellPrice")]
-        public decimal ExecutedSellPrice { get; set; }
+        [JsonProperty(PropertyName = "sellOrderFilledPrice")]
+        public decimal SellOrderFilledPrice { get; set; }
+        [JsonProperty(PropertyName = "stopLossOrderCreated")]
+        public bool StopLossOrderCreated { get; set; }
+        [JsonProperty(PropertyName = "stopLossOrderPrice")]
+        public decimal StopLossOrderPrice { get; set; }
+        [JsonProperty(PropertyName = "stopLossFilledPrice")]
+        public decimal StopLossFilledPrice { get; set; }
+        [JsonProperty(PropertyName = "dayBlock")]
+        public bool DayBlock { get; set; }
 
         public override string ToString()
         {
