@@ -1,5 +1,5 @@
 ﻿
-namespace TradingService.CreateBlocksFromSymbol.Models
+namespace TradingService.BlockManagement.Models
 {
     public class BlockPrices
     {
