@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.Common.Order;
 
-namespace TradingService.ManageOrders
+namespace TradingService.OrderManagement
 {
     public static class CloseAllOpenPositions
     {

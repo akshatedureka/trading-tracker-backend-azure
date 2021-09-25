@@ -1,8 +1,7 @@
-﻿
-using System;
+﻿using System;
 using Alpaca.Markets;
 
-namespace TradingService.UpdateBlockFromQueueMsg
+namespace TradingService.TradeManagement.Models
 {
     public class OrderUpdateMessage
     {

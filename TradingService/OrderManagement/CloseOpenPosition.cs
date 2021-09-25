@@ -10,7 +10,7 @@ using Microsoft.Azure.Cosmos;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 
-namespace TradingService.ManageOrders
+namespace TradingService.OrderManagement
 {
     public static class CloseOpenPosition
     {

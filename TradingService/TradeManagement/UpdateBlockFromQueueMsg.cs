@@ -10,8 +10,9 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
+using TradingService.TradeManagement.Models;
 
-namespace TradingService.UpdateBlockFromQueueMsg
+namespace TradingService.TradeManagement
 {
     public static class UpdateBlockFromQueueMsg
     {
