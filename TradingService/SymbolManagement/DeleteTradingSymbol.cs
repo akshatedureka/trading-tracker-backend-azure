@@ -10,9 +10,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.TradingSymbol.Models;
+using TradingService.SymbolManagement.Models;
 
-namespace TradingService.TradingSymbol
+namespace TradingService.SymbolManagement
 {
     public static class DeleteTradingSymbol
     {

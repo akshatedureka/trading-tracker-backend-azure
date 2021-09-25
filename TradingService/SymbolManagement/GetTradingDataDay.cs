@@ -10,10 +10,10 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using TradingService.Common.Order;
-using TradingService.TradingSymbol.Models;
+using TradingService.SymbolManagement.Models;
 using TradingService.Common.Models;
 
-namespace TradingService.TradingSymbol
+namespace TradingService.SymbolManagement
 {
     public static class GetTradingDataDay
     {

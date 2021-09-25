@@ -8,10 +8,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.TradingSymbol.Models;
-using TradingService.TradingSymbol.Transfer;
+using TradingService.SymbolManagement.Models;
+using TradingService.SymbolManagement.Transfer;
 
-namespace TradingService.TradingSymbol
+namespace TradingService.SymbolManagement
 {
     public static class UpdateTradingSymbol
     {

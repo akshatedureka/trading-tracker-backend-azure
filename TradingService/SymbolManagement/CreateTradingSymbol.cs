@@ -7,9 +7,9 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using TradingService.TradingSymbol.Models;
+using TradingService.SymbolManagement.Models;
 
-namespace TradingService.TradingSymbol
+namespace TradingService.SymbolManagement
 {
     public static class CreateTradingSymbol
     {
