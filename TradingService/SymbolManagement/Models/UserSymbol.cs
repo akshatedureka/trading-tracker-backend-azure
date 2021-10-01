@@ -1,18 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace TradingService.SymbolManagement.Models
 {
-    public class Symbol
+    public class UserSymbol
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
-        [JsonProperty(PropertyName = "name")]
-        public string Name { get; set; }
-        [JsonProperty(PropertyName = "active")]
-        public bool Active { get; set; }
-        [JsonProperty(PropertyName = "trading")]
-        public bool Trading { get; set; }
+        [JsonProperty(PropertyName = "user")]
+        public string UserId { get; set; }
+        [JsonProperty(PropertyName = "symbols")]
+        public List<Symbol> Symbols { get; set; }
         [JsonProperty(PropertyName = "dateCreated")]
         public DateTime DateCreated { get; set; }
 

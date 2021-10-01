@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace TradingService.SymbolManagement.Models
+namespace TradingService.TradeManagement.Models
 {
     public class TradingData
     {

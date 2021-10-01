@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using TradingService.Common.Repository;
 using TradingService.SymbolManagement.Models;
 
 namespace TradingService.SymbolManagement
@@ -18,46 +20,19 @@ namespace TradingService.SymbolManagement
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            // Get symbol name
-            string symbol = req.Query["symbol"];
+            var symbol = req.Query["symbol"];
+            var userId = req.Headers["From"].FirstOrDefault();
 
-            if (string.IsNullOrEmpty(symbol))
+            if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(userId))
             {
-                return new BadRequestObjectResult("Query parameter is null or empty.");
+                return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
+            const string databaseId = "Tracker";
+            const string containerId = "Symbols";
+            var container = await Repository.GetContainer(databaseId, containerId);
 
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-            // The name of the database and container we will create
-            var databaseId = "Tracker";
-            var containerId = "Symbols";
-
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
-
-            // Check if symbol is already created first
-            // Read symbols from Cosmos DB ToDo: Create central repo for queries
-            try
-            {
-                var existingSymbols = container.GetItemLinqQueryable<Symbol>(allowSynchronousQueryExecution: true).ToList();
-                if (existingSymbols.Any(symbolToCheck => symbolToCheck.Name == symbol))
-                {
-                    return new ConflictResult();
-                }
-            }
-            catch (CosmosException ex)
-            {
-                log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex);
-                return new BadRequestResult();
-            }
-
-            // Create new symbol to save
-            var tradingSymbol = new Symbol()
+            var symbolToAdd = new Symbol
             {
                 Id = Guid.NewGuid().ToString(),
                 DateCreated = DateTime.Now,
@@ -65,18 +40,52 @@ namespace TradingService.SymbolManagement
                 Active = true
             };
 
-            // Save symbol to Cosmos DB
             try
             {
-                var blockResponse = await container.CreateItemAsync<Symbol>(tradingSymbol, new PartitionKey(tradingSymbol.Name));
+                var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+
+                if (userSymbol == null) // Initial UserSymbol item creation
+                {
+                    // Create UserSymbol item for user with symbol added
+                    var userSymbolToCreate = new UserSymbol()
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        DateCreated = DateTime.Now,
+                        UserId = userId,
+                        Symbols = new List<Symbol>
+                        {
+                            symbolToAdd
+                        }
+                    };
+                    var newUserSymbolResponse = await container.CreateItemAsync(userSymbolToCreate,
+                        new PartitionKey(userSymbolToCreate.UserId));
+                    return new OkObjectResult(newUserSymbolResponse.Resource.ToString());
+                }
+
+                // Check if symbol is added already, if so, return a conflict result
+                var existingSymbols = userSymbol.Symbols.ToList();
+                if (existingSymbols.Any(symbolToCheck => symbolToCheck.Name == symbol))
+                {
+                    return new ConflictResult();
+                }
+
+                // Add new symbol to existing UserSymbol item
+                userSymbol.Symbols.Add(symbolToAdd);
+                var addSymbolResponse =
+                    await container.ReplaceItemAsync(userSymbol, userSymbol.Id, new PartitionKey(userSymbol.UserId));
+                return new OkObjectResult(addSymbolResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating new trading symbol in DB, {ex}", ex);
-                return new BadRequestResult();
+                log.LogError("Issue creating new symbol in Cosmos DB {ex}", ex);
+                return new BadRequestObjectResult("Error while creating new symbol in Cosmos DB: " + ex);
             }
-
-            return new OkObjectResult(tradingSymbol);
+            catch (Exception ex)
+            {
+                log.LogError("Issue creating new symbol {ex}", ex);
+                return new BadRequestObjectResult("Error while creating new symbol: " + ex);
+            }
         }
     }
 }

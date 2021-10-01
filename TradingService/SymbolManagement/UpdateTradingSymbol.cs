@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.SymbolManagement.Models;
 using TradingService.SymbolManagement.Transfer;
+using TradingService.Common.Repository;
 
 namespace TradingService.SymbolManagement
 {
@@ -22,56 +24,47 @@ namespace TradingService.SymbolManagement
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var symbol = JsonConvert.DeserializeObject<SymbolTransfer>(requestBody);
+            var userId = req.Headers["From"].FirstOrDefault();
 
             if (symbol is null || string.IsNullOrEmpty(symbol.Name))
             {
                 return new BadRequestObjectResult("Data body is null or empty during symbol update request.");
             }
 
-            var symbolNameToUpdate = symbol.OldName is null ? symbol.Name : symbol.OldName;
+            var symbolNameToUpdate = symbol.OldName ?? symbol.Name;
 
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
+            const string databaseId = "Tracker";
+            const string containerId = "Symbols";
+            var container = await Repository.GetContainer(databaseId, containerId);
 
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-            // The name of the database and container we will create
-            var databaseId = "Tracker";
-            var containerId = "Symbols";
-
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
-
-            // Update symbol in Cosmos DB
             try
             {
-                var tradingSymbolToUpdateResponse = await container.ReadItemAsync<Symbol>(symbol.Id, new PartitionKey(symbolNameToUpdate));
-                var tradingSymbolToUpdate = tradingSymbolToUpdateResponse.Resource;
-                tradingSymbolToUpdate.Name = symbol.Name;
-                tradingSymbolToUpdate.Active = symbol.Active;
-                tradingSymbolToUpdate.Trading = symbol.Trading;
+                var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 
-                if (symbol.OldName != null && symbol.OldName != symbol.Name) // If changing partition key, you must delete and create a new symbol
+                if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found");
+
+                foreach (var symbolToUpdate in userSymbol.Symbols.Where(symbolToUpdate => symbolToUpdate.Name == symbolNameToUpdate))
                 {
-                    var deleteBlockResponse = await container.DeleteItemAsync<Symbol>(symbol.Id, new PartitionKey(symbol.OldName));
-                    tradingSymbolToUpdate.Id = Guid.NewGuid().ToString();
-                    tradingSymbolToUpdate.DateCreated = DateTime.Now;
-                    var createNewSymbol = await container.CreateItemAsync<Symbol>(tradingSymbolToUpdate, new PartitionKey(tradingSymbolToUpdate.Name));
+                    symbolToUpdate.Name = symbol.Name;
+                    symbolToUpdate.Active = symbol.Active;
+                    symbolToUpdate.Trading = symbol.Trading;
                 }
-                else
-                {
-                    var updateSymbolResponse = await container.ReplaceItemAsync<Symbol>(tradingSymbolToUpdate, symbol.Id, new PartitionKey(symbol.Name));
-                }
+
+                var updateSymbolResponse = await container.ReplaceItemAsync(userSymbol, userSymbol.Id,
+                        new PartitionKey(userSymbol.UserId));
+                    return new OkObjectResult(updateSymbolResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
-                log.LogError("Error updating symbol in DB {ex}", ex);
-                return new BadRequestResult();
+                log.LogError("Issue removing symbol in Cosmos DB {ex}", ex);
+                return new BadRequestObjectResult("Error while removing symbol in Cosmos DB: " + ex);
             }
-
-            return new OkResult();
+            catch (Exception ex)
+            {
+                log.LogError("Issue removing symbol {ex}", ex);
+                return new BadRequestObjectResult("Error while removing new symbol: " + ex);
+            }
         }
     }
 }
