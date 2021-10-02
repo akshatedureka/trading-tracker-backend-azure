@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.BlockManagement.Models;
+using TradingService.Common.Repository;
 
 namespace TradingService.BlockManagement
 {
@@ -20,46 +22,21 @@ namespace TradingService.BlockManagement
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-
+            var userId = req.Headers["From"].FirstOrDefault();
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var ladderData = JsonConvert.DeserializeObject<Ladder>(requestBody);
 
-            if (ladderData is null || string.IsNullOrEmpty(ladderData.Symbol))
+            if (ladderData is null || string.IsNullOrEmpty(ladderData.Symbol) || string.IsNullOrEmpty(userId))
             {
-                return new BadRequestObjectResult("Data body is null or empty.");
+                return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
-
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-            // The name of the database and container we will create
-            var databaseId = "Tracker";
-            var containerId = "Ladders";
-
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
-
-            // Check if block header is already created first
-            try
-            {
-                var existingLadders = container.GetItemLinqQueryable<Ladder>(allowSynchronousQueryExecution: true).ToList();
-                if (existingLadders.Any(ladderToCheck => ladderToCheck.Symbol == ladderData.Symbol))
-                {
-                    return new ConflictResult();
-                }
-            }
-            catch (CosmosException ex)
-            {
-                log.LogError("Issue reading existing ladders in DB {ex}", ex);
-                return new BadRequestResult();
-            }
+            const string databaseId = "Tracker";
+            const string containerId = "Ladders";
+            var container = await Repository.GetContainer(databaseId, containerId);
 
             // Create new ladder to save
-            var ladder = new Ladder()
+            var ladderToAdd = new Ladder()
             {
                 Id = Guid.NewGuid().ToString(),
                 DateCreated = DateTime.Now,
@@ -71,16 +48,51 @@ namespace TradingService.BlockManagement
                 BlocksCreated = false
             };
 
-            // Save ladder to Cosmos DB
             try
             {
-                var blockHeaderResponse = await container.CreateItemAsync<Ladder>(ladder, new PartitionKey(ladder.Symbol));
-                return new OkObjectResult(blockHeaderResponse.Resource.ToString());
+                var userLadder = container.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
+                    .Where(l => l.UserId == userId).ToList().FirstOrDefault();
+
+                if (userLadder == null) // Initial UserLadder item creation
+                {
+                    // Create UserLadder item for user with ladder added
+                    var userLadderToCreate = new UserLadder()
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        DateCreated = DateTime.Now,
+                        UserId = userId,
+                        Ladders = new List<Ladder>
+                        {
+                            ladderToAdd
+                        }
+                    };
+                    var newUserLadderResponse = await container.CreateItemAsync(userLadderToCreate,
+                        new PartitionKey(userLadderToCreate.UserId));
+                    return new OkObjectResult(newUserLadderResponse.Resource.ToString());
+                }
+
+                // Check if ladder is added already, if so, return a conflict result
+                var existingLadders = userLadder.Ladders.ToList();
+                if (existingLadders.Any(symbolToCheck => symbolToCheck.Symbol == ladderToAdd.Symbol))
+                {
+                    return new ConflictResult();
+                }
+
+                // Add new ladder to existing UserLadder item
+                userLadder.Ladders.Add(ladderToAdd);
+                var addLadderResponse =
+                    await container.ReplaceItemAsync(userLadder, userLadder.Id, new PartitionKey(userLadder.UserId));
+                return new OkObjectResult(addLadderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating new ladder in DB, {ex}", ex);
-                return new BadRequestResult();
+                log.LogError("Issue creating new ladder in Cosmos DB {ex}", ex);
+                return new BadRequestObjectResult("Error while creating new ladder in Cosmos DB: " + ex);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue creating new ladder {ex}", ex);
+                return new BadRequestObjectResult("Error while creating new ladder: " + ex);
             }
         }
     }

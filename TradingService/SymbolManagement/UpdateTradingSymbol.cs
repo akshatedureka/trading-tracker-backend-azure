@@ -42,28 +42,34 @@ namespace TradingService.SymbolManagement
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 
-                if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found");
+                if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found.");
 
-                foreach (var symbolToUpdate in userSymbol.Symbols.Where(symbolToUpdate => symbolToUpdate.Name == symbolNameToUpdate))
+                var symbolToUpdate = userSymbol.Symbols.FirstOrDefault(s => s.Name == symbolNameToUpdate);
+
+                if (symbolToUpdate != null)
                 {
                     symbolToUpdate.Name = symbol.Name;
                     symbolToUpdate.Active = symbol.Active;
                     symbolToUpdate.Trading = symbol.Trading;
                 }
+                else
+                {
+                    return new NotFoundObjectResult("Symbol not found in User Symbol.");
+                }
 
                 var updateSymbolResponse = await container.ReplaceItemAsync(userSymbol, userSymbol.Id,
                         new PartitionKey(userSymbol.UserId));
-                    return new OkObjectResult(updateSymbolResponse.Resource.ToString());
+                return new OkObjectResult(updateSymbolResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
                 log.LogError("Issue removing symbol in Cosmos DB {ex}", ex);
-                return new BadRequestObjectResult("Error while removing symbol in Cosmos DB: " + ex);
+                return new BadRequestObjectResult("Error while updating symbol in Cosmos DB: " + ex);
             }
             catch (Exception ex)
             {
                 log.LogError("Issue removing symbol {ex}", ex);
-                return new BadRequestObjectResult("Error while removing new symbol: " + ex);
+                return new BadRequestObjectResult("Error while updating symbol: " + ex);
             }
         }
     }

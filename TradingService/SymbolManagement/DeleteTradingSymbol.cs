@@ -36,7 +36,7 @@ namespace TradingService.SymbolManagement
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 
-                if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found");
+                if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found.");
 
                 userSymbol.Symbols.Remove(userSymbol.Symbols.FirstOrDefault(s => s.Name == symbol));
                 var updateSymbolResponse = await container.ReplaceItemAsync(userSymbol, userSymbol.Id,
@@ -51,7 +51,7 @@ namespace TradingService.SymbolManagement
             catch (Exception ex)
             {
                 log.LogError("Issue removing symbol {ex}", ex);
-                return new BadRequestObjectResult("Error while removing new symbol: " + ex);
+                return new BadRequestObjectResult("Error while removing symbol: " + ex);
             }
         }
     }

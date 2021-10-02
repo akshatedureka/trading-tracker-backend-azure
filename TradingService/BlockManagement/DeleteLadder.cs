@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,8 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.BlockManagement.Models;
+using TradingService.Common.Repository;
+using TradingService.SymbolManagement.Models;
 
 namespace TradingService.BlockManagement
 {
@@ -20,44 +23,39 @@ namespace TradingService.BlockManagement
             [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
             ILogger log)
         {
-            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var ladder = JsonConvert.DeserializeObject<Ladder>(requestBody);
-            
-            if (ladder is null || string.IsNullOrEmpty(ladder.Symbol) || string.IsNullOrEmpty(ladder.Id))
+            var symbol = req.Query["symbol"];
+            var userId = req.Headers["From"].FirstOrDefault();
+
+            if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(userId))
             {
-                return new BadRequestObjectResult("Ladder is null or empty.");
+                return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
+            const string databaseId = "Tracker";
+            const string containerId = "Ladders";
+            var container = await Repository.GetContainer(databaseId, containerId);
 
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-            // The name of the database and container we will create
-            var databaseId = "Tracker";
-            var containerId = "Ladders";
-
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
-
-            // Delete ladder from Cosmos DB
             try
             {
-                var deleteLadderResponse = await container.DeleteItemAsync<Ladder>(ladder.Id, new PartitionKey(ladder.Symbol));
-                return new OkObjectResult(ladder.ToString());
+                var userLadder = container.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+
+                if (userLadder == null) return new NotFoundObjectResult("User ladder not found.");
+
+                userLadder.Ladders.Remove(userLadder.Ladders.FirstOrDefault(l => l.Symbol == symbol));
+                var updateLadderResponse = await container.ReplaceItemAsync(userLadder, userLadder.Id,
+                    new PartitionKey(userLadder.UserId));
+                return new OkObjectResult(updateLadderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue deleting ladder from Cosmos DB {ex}", ex);
-
-                if (ex.StatusCode == HttpStatusCode.NotFound)
-                {
-                    return new NotFoundResult();
-                }
-                   
-                return new BadRequestResult();
+                log.LogError("Issue removing ladder in Cosmos DB {ex}", ex);
+                return new BadRequestObjectResult("Error while removing ladder in Cosmos DB: " + ex);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue removing symbol {ex}", ex);
+                return new BadRequestObjectResult("Error while removing ladder: " + ex);
             }
         }
     }
