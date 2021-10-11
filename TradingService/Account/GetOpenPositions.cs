@@ -23,9 +23,11 @@ namespace TradingService.Account
         {
             log.LogInformation("C# HTTP trigger function processed a request to get open positions.");
 
-            var positions = await Order.GetOpenPositions();
-            var positionsToReturn = positions.Select(position => new Position { Symbol = position.Symbol, Quantity = position.Quantity, Profit = position.UnrealizedProfitLoss }).ToList();
-            return new OkObjectResult(JsonConvert.SerializeObject(positionsToReturn));
+            // ToDo: Verify this is really not used anymore
+            //var positions = await Order.GetOpenPositions();
+            //var positionsToReturn = positions.Select(position => new Position { Symbol = position.Symbol, Quantity = position.Quantity, Profit = position.UnrealizedProfitLoss }).ToList();
+            //return new OkObjectResult(JsonConvert.SerializeObject(positionsToReturn));
+            return new OkResult();
         }
     }
 }

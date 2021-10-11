@@ -5,50 +5,54 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Configuration;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
+using TradingService.Common.Repository;
 
 namespace TradingService.OrderManagement
 {
-    public static class CloseOpenPosition
+    public class CloseOpenPosition
     {
-        private static readonly string endpointUri = Environment.GetEnvironmentVariable("EndPointUri"); // ToDo: Centralize config values to common project?
-        private static readonly string primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-        private static readonly CosmosClient cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-        private static Database _database;
+        private readonly IConfiguration _configuration;
         private static Container _containerArchive;
-
         private static readonly string databaseId = "Tracker";
         private static readonly string containerArchiveId = "BlocksArchive";
 
+        public CloseOpenPosition(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [FunctionName("CloseOpenPosition")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to close open positions for symbol.");
             
-            _database = await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            _containerArchive = await _database.CreateContainerIfNotExistsAsync(containerArchiveId, "/symbol");
+            _containerArchive = await Repository.GetContainer(databaseId, containerArchiveId);
 
             // Get symbol name
             string symbol = req.Query["symbol"];
+            var userId = req.Headers["From"].FirstOrDefault();
 
             try
             {
-                var block = await Order.CloseOpenPositionAndCancelExistingOrders(symbol);
-                if (block is null)
+                var archiveBlock = await Order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
+                if (archiveBlock is null)
                 {
                     Console.WriteLine("Error closing open positions");
                     return new BadRequestObjectResult("There are no open positions.");
                 }
 
                 // ToDo: Move archive block to common module
-                await ArchiveBlock(block, block.SellOrderFilledPrice);
-                log.LogInformation("Created archive record for block id {block.Id} at: {time}", block.Id, DateTimeOffset.Now);
+                await _containerArchive.CreateItemAsync(archiveBlock, new PartitionKey(archiveBlock.UserId));
+
+                log.LogInformation("Created archive record for block id {archiveBlock.Id} at: {time}", archiveBlock.Id, DateTimeOffset.Now);
 
                 return new OkResult();
             }
@@ -59,17 +63,5 @@ namespace TradingService.OrderManagement
             }
             
         }
-
-        private static async Task ArchiveBlock(Block block, decimal executedSellPrice)
-        {
-            // ToDo: Create a new object for archive block, only keep the fields relevant to archive, add profit field
-            var archiveBlockJson = JsonConvert.SerializeObject(block);
-            var archiveBlock = JsonConvert.DeserializeObject<Block>(archiveBlockJson); //deep copy object
-            archiveBlock.Id = Guid.NewGuid().ToString();
-            archiveBlock.SellOrderFilledPrice = executedSellPrice;
-
-            await _containerArchive.CreateItemAsync<Block>(archiveBlock, new PartitionKey(archiveBlock.Symbol));
-        }
-
     }
 }

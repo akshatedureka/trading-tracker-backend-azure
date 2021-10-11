@@ -8,17 +8,24 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
+using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement
 {
-    public static class CreateInitialBuyOrdersFromSymbol
+    public class CreateInitialBuyOrdersFromSymbol
     {
+        private readonly IConfiguration _configuration;
+        public CreateInitialBuyOrdersFromSymbol(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [FunctionName("CreateInitialBuyOrdersFromSymbol")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -26,52 +33,42 @@ namespace TradingService.TradeManagement
 
             // Get symbol name
             string symbol = req.Query["symbol"];
+            var userId = req.Headers["From"].FirstOrDefault();
 
-            // Read blocks from Cosmos DB
-            // The Azure Cosmos DB endpoint for running this sample.
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri"); // ToDo: Centralize config values to common project?
-
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
+            if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(userId))
+            {
+                return new BadRequestObjectResult("Required data is missing from request.");
+            }
 
             // The name of the database and container we will create
             var databaseId = "Tracker";
             var containerId = "Blocks";
 
             // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
+            var container = await Repository.GetContainer(databaseId, containerId);
 
-            var blocks = new List<Block>();
+            var existingUserSymbolBlock = new UserBlock();
 
-            // Read blocks from Cosmos DB
+            // Read user symbol block from Cosmos DB
             try
             {
-                //var iterator = container.GetItemQueryIterator<Block>(); // ToDo: centralize Block class, common project?
-                using (FeedIterator<Block> setIterator = container.GetItemLinqQueryable<Block>()
-                    .Where(b => b.Symbol == symbol)
-                    .ToFeedIterator<Block>())
+                existingUserSymbolBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
+                    .Where(b => b.UserId == userId && b.Symbol == symbol).ToList().FirstOrDefault();
+
+                if (existingUserSymbolBlock == null)
                 {
-                    //Asynchronous query execution
-                    while (setIterator.HasMoreResults)
-                    {
-                        foreach (var block in await setIterator.ReadNextAsync())
-                        {
-                            blocks.Add(block); // ToDo: Research better way of returning all results without iterating
-                        }
-                    }
+                    return new NotFoundObjectResult($"No blocks were found for symbol {symbol}");
                 }
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating Cosmos DB item {ex}", ex);
+                log.LogError("Issue getting user symbol block from Cosmos DB item {ex}", ex);
             }
 
             // Create buy orders in Alpaca
             try
             {
-                await CreateBracketOrdersBasedOnCurrentPrice(blocks, symbol, container, log);
+                await CreateBracketOrdersBasedOnCurrentPrice(existingUserSymbolBlock, container, log);
             }
             catch (Exception ex)
             {
@@ -82,13 +79,13 @@ namespace TradingService.TradeManagement
             return new OkObjectResult("Successfully created initial buy orders for symbol " + symbol);
         }
 
-        private static async Task CreateBracketOrdersBasedOnCurrentPrice(List<Block> blocks, string symbol, Container container, ILogger log)
+        private async Task CreateBracketOrdersBasedOnCurrentPrice(UserBlock userBlock, Container container, ILogger log)
         {
-            var currentPrice = await Order.GetCurrentPrice(symbol);
+            var currentPrice = await Order.GetCurrentPrice(_configuration, userBlock.UserId, userBlock.Symbol);
 
             // Get blocks above and below the current price to create buy orders for
-            var blocksAbove = GetBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 10);
-            var blocksBelow = GetBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
+            var blocksAbove = GetBlocksAboveCurrentPriceByPercentage(userBlock.Blocks, currentPrice, 10);
+            var blocksBelow = GetBlocksBelowCurrentPriceByPercentage(userBlock.Blocks, currentPrice, 5);
 
             // Create limit / stop limit orders for each block above and below current price
             var countAboveAndBelow = 2;
@@ -99,24 +96,22 @@ namespace TradingService.TradeManagement
                 var block = blocksAbove[x];
                 var stopPrice = block.BuyOrderPrice - (decimal) 0.05;
 
-                var orderIds = await Order.CreateStopLimitBracketOrder(OrderSide.Buy, symbol, block.NumShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", symbol, block.BuyOrderPrice);
+                var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", userBlock.Symbol, block.BuyOrderPrice);
 
                 //ToDo: Refactor to combine with blocks below
-                // Replace Cosmos DB document
-                // Get item
-                var blockReplaceResponse = await container.ReadItemAsync<Block>(block.Id, new PartitionKey(symbol));
-                var itemBody = blockReplaceResponse.Resource;
+                // Update Cosmos DB item
+                var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 
                 // Update with external buy id generated from Alpaca
-                itemBody.ExternalBuyOrderId = orderIds.BuyOrderId;
-                itemBody.ExternalSellOrderId = orderIds.SellOrderId;
-                itemBody.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                itemBody.BuyOrderCreated = true;
+                blockToUpdate.ExternalBuyOrderId = orderIds.BuyOrderId;
+                blockToUpdate.ExternalSellOrderId = orderIds.SellOrderId;
+                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                blockToUpdate.BuyOrderCreated = true;
 
                 // Replace the item with the updated content
-                blockReplaceResponse = await container.ReplaceItemAsync<Block>(itemBody, itemBody.Id, new PartitionKey(itemBody.Symbol));
-                log.LogInformation("Updated Block[{ 0},{ 1}].\n \tBody is now: { 2}\n", itemBody.ExternalBuyOrderId, itemBody.Id, blockReplaceResponse.Resource);
+                var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                log.LogInformation("Updated Block[{ 0},{ 1}].\n \tBody is now: { 2}\n", blockToUpdate.ExternalBuyOrderId, blockToUpdate.Id, blockReplaceResponse.Resource);
             }
 
             // Two blocks below
@@ -124,25 +119,23 @@ namespace TradingService.TradeManagement
             {
                 var block = blocksBelow[x];
 
-                var orderIds = await Order.CreateLimitBracketOrder(OrderSide.Buy, symbol, block.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
 
-                // Replace Cosmos DB document
-                var blockReplaceResponse = await container.ReadItemAsync<Block>(block.Id, new PartitionKey(symbol));
-                var itemBody = blockReplaceResponse.Resource;
+                var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 
                 // Update with external buy id generated from Alpaca
-                itemBody.ExternalBuyOrderId = orderIds.BuyOrderId;
-                itemBody.ExternalSellOrderId = orderIds.SellOrderId;
-                itemBody.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                itemBody.BuyOrderCreated = true;
+                blockToUpdate.ExternalBuyOrderId = orderIds.BuyOrderId;
+                blockToUpdate.ExternalSellOrderId = orderIds.SellOrderId;
+                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                blockToUpdate.BuyOrderCreated = true;
 
                 // replace the item with the updated content
-                blockReplaceResponse = await container.ReplaceItemAsync<Block>(itemBody, itemBody.Id, new PartitionKey(itemBody.Symbol));
-                log.LogInformation("Updated Block[{ 0},{ 1}].\n \tBody is now: { 2}\n", itemBody.ExternalBuyOrderId, itemBody.Id, blockReplaceResponse.Resource);
+                var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                log.LogInformation("Updated Block[{ 0},{ 1}].\n \tBody is now: { 2}\n", blockToUpdate.ExternalBuyOrderId, blockToUpdate.Id, blockReplaceResponse.Resource);
             }
         }
 
-        private static List<Block> GetBlocksAboveCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)
+        private List<Block> GetBlocksAboveCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)
         {
             // Get blocks above current price based on percentage
             var buyOrderPriceMaxAmount = currentPrice + (currentPrice * (percentage / 100));
@@ -151,7 +144,7 @@ namespace TradingService.TradeManagement
             return blocksAbove;
         }
 
-        private static List<Block> GetBlocksBelowCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)
+        private List<Block> GetBlocksBelowCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)
         {
             // Get blocks below current price based on percentage
             var buyOrderPriceMaxAmount = currentPrice - (currentPrice * (percentage / 100));

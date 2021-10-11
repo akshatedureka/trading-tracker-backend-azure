@@ -8,7 +8,7 @@ namespace TradingService.SymbolManagement.Models
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
-        [JsonProperty(PropertyName = "user")]
+        [JsonProperty(PropertyName = "userId")]
         public string UserId { get; set; }
         [JsonProperty(PropertyName = "symbols")]
         public List<Symbol> Symbols { get; set; }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -38,7 +39,7 @@ namespace TradingService.BlockManagement
                 var userLadderResponse = container
                     .GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
-                return userLadderResponse != null ? new OkObjectResult(userLadderResponse.Ladders) : new OkObjectResult("No ladders found for user.");
+                return userLadderResponse != null ? new OkObjectResult(userLadderResponse.Ladders) : new OkObjectResult(new List<Ladder>());
             }
             catch (CosmosException ex)
             {

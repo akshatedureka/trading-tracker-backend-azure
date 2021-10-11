@@ -2,16 +2,20 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace TradingService.BlockManagement.Models
+namespace TradingService.Common.Models
 {
-    public class UserLadder
+    public class UserBlock
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
         [JsonProperty(PropertyName = "userId")]
         public string UserId { get; set; }
-        [JsonProperty(PropertyName = "ladders")]
-        public List<Ladder> Ladders { get; set; }
+        [JsonProperty(PropertyName = "symbol")]
+        public string Symbol { get; set; }
+        [JsonProperty(PropertyName = "numShares")]
+        public long NumShares { get; set; }
+        [JsonProperty(PropertyName = "blocks")]
+        public List<Block> Blocks { get; set; }
         [JsonProperty(PropertyName = "dateCreated")]
         public DateTime DateCreated { get; set; }
 

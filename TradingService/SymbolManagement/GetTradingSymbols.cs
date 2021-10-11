@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -38,7 +39,7 @@ namespace TradingService.SymbolManagement
                 var userSymbolResponse = container
                     .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
-                return userSymbolResponse != null ? new OkObjectResult(userSymbolResponse.Symbols) : new OkObjectResult("No symbols found for user.");
+                return userSymbolResponse != null ? new OkObjectResult(userSymbolResponse.Symbols) : new OkObjectResult(new List<Symbol>());
             }
             catch (CosmosException ex)
             {

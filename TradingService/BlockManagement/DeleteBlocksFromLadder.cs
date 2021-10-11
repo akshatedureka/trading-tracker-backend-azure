@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -13,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.BlockManagement.Models;
 using TradingService.Common.Models;
+using TradingService.Common.Repository;
 
 namespace TradingService.BlockManagement
 {
@@ -23,78 +22,63 @@ namespace TradingService.BlockManagement
             [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
             ILogger log)
         {
+            // ToDo: Delete blocks from user blocks based on user id / symbol; update ladder to indicate blocks not created
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var ladderData = JsonConvert.DeserializeObject<Ladder>(requestBody);
-            
-            if (ladderData is null || string.IsNullOrEmpty(ladderData.Symbol))
+            var ladder = JsonConvert.DeserializeObject<Ladder>(requestBody);
+            var userId = req.Headers["From"].FirstOrDefault();
+
+            if (ladder is null || string.IsNullOrEmpty(ladder.Symbol) || string.IsNullOrEmpty(userId))
             {
-                return new BadRequestObjectResult("Ladder is null or empty.");
+                return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
+            const string databaseId = "Tracker";
+            const string containerId = "Blocks";
+            const string containerIdForLadders = "Ladders";
+            var container = await Repository.GetContainer(databaseId, containerId);
+            var containerForLadders = await Repository.GetContainer(databaseId, containerIdForLadders);
 
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-            // The name of the database and container we will create
-            var databaseId = "Tracker";
-            var containerId = "Blocks";
-            var containerLaddersId = "Ladders";
-            
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
-            var containerLadders = (Container)await database.CreateContainerIfNotExistsAsync(containerLaddersId, "/symbol");
-
-            // Get all blocks
-            var blocks = new List<Block>();
-
-            // Read blocks from Cosmos DB
             try
             {
-                blocks = container.GetItemLinqQueryable<Block>(allowSynchronousQueryExecution: true).ToList();
-            }
-            catch (CosmosException ex)
-            {
-                log.LogError("Issue getting blocks to delete from DB {ex}", ex);
-                return new BadRequestResult();
-            }
+                var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
+                    .Where(u => u.UserId == userId && u.Symbol == ladder.Symbol).ToList().FirstOrDefault();
 
-            // Delete blocks from Cosmos DB
-            try
-            {
-                foreach (var block in blocks.Where(block => block.Symbol == ladderData.Symbol))
+                if (userBlock == null) return new NotFoundObjectResult($"No blocks were found for symbol {ladder.Symbol}.");
+
+                //ToDo: change partition key to userId - should only delete user block with specific id, not all with userId
+                var deleteUserBlockResponse = await container.DeleteItemAsync<UserBlock>(userBlock.Id, new PartitionKey(userBlock.UserId));
+
+                // Update ladder to indicate blocks have been created
+                var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
+                    .Where(l => l.UserId == userId).ToList().FirstOrDefault();
+
+                if (userLadder == null) return new NotFoundObjectResult($"Ladder was not found for symbol {ladder.Symbol}.");
+
+                var ladderToUpdate = userLadder.Ladders.FirstOrDefault(l => l.Symbol == ladder.Symbol);
+
+                if (ladderToUpdate != null)
                 {
-                    var response = await container.DeleteItemAsync<Block>(block.Id, new PartitionKey(block.Symbol));
+                    ladderToUpdate.BlocksCreated = false;
                 }
-            }
-            catch (CosmosException ex)
-            {
-                log.LogError("Issue deleting blocks from DB {ex}", ex);
-
-                if (ex.StatusCode == HttpStatusCode.NotFound)
+                else
                 {
-                    return new NotFoundResult();
+                    return new NotFoundObjectResult("Symbol not found in User Ladder.");
                 }
-                   
-                return new BadRequestResult();
-            }
 
-            //ToDo: can be a common function?
-            // Update ladder indicating blocks have already been created
-            try
-            {
-                var ladderToUpdateResponse = await containerLadders.ReadItemAsync<Ladder>(ladderData.Id, new PartitionKey(ladderData.Symbol));
-                var ladderToUpdate = ladderToUpdateResponse.Resource;
-                ladderToUpdate.BlocksCreated = false;
-                var updateLadderResponse = await containerLadders.ReplaceItemAsync<Ladder>(ladderToUpdate, ladderToUpdate.Id, new PartitionKey(ladderToUpdate.Symbol));
+                var updateLadderResponse = await containerForLadders.ReplaceItemAsync(userLadder, userLadder.Id,
+                    new PartitionKey(userLadder.UserId));
+
                 return new OkObjectResult(updateLadderResponse.Resource.ToString());
             }
             catch (CosmosException ex)
             {
-                log.LogError("Error updating ladder to indicate blocks have been created: {ex}", ex);
-                return new BadRequestResult();
+                log.LogError("Issue deleting blocks from ladder in Cosmos DB {ex}", ex);
+                return new BadRequestObjectResult("Error while deleting blocks from ladder in Cosmos DB: " + ex);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue deleting blocks from ladder {ex}", ex);
+                return new BadRequestObjectResult("Error deleting blocks from ladder: " + ex);
             }
         }
     }

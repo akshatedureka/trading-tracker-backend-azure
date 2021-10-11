@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
 using Microsoft.AspNetCore.Mvc;
@@ -12,18 +13,27 @@ using Newtonsoft.Json;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Configuration;
 
 namespace TradingService.TradeManagement
 {
-    public static class CreateBracketOrders
+    public class CreateBracketOrders
     {
+        private readonly IConfiguration _configuration;
+
+        public CreateBracketOrders(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [FunctionName("CreateBracketOrders")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
 
+            var userId = req.Headers["From"].FirstOrDefault();
             string name = req.Query["symbol"];
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -42,8 +52,8 @@ namespace TradingService.TradeManagement
             foreach (var symbol in symbols)
             {
                 // Get previous day close
-                var currentPrice = await Order.GetCurrentPrice(symbol);
-                var previousDayClose = await Order.GetPreviousDayClose(symbol);
+                var currentPrice = await Order.GetCurrentPrice(_configuration, userId, symbol);
+                var previousDayClose = await Order.GetPreviousDayClose(_configuration, userId, symbol);
 
                 if (currentPrice < previousDayClose) // ToDo: And no open day block for symbol
                 {
@@ -54,17 +64,23 @@ namespace TradingService.TradeManagement
                     var quantity = 100;
 
                     // every one minute, cancel and do a new order if not filled to reset price
-                    var orderIds = await Order.CreateStopLimitBracketOrder(OrderSide.Buy, name, quantity, stopPrice, limitPrice, takeProfitLimitPrice, stopLossPrice);
+                    var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userId, name, quantity, stopPrice, limitPrice, takeProfitLimitPrice, stopLossPrice);
                     var buyOrderId = orderIds.BuyOrderId;
                     var sellOrderId = orderIds.SellOrderId;
                     var stopLossOrderId = orderIds.StopLossOrderId;
 
+                    // ToDo: Update to a per user archive table
                     // Record block in new day trade archive table
-                    var dayBlock = new Block
+                    var userBlock = new UserBlock
                     {
                         Id = Guid.NewGuid().ToString(),
                         Symbol = symbol,
-                        NumShares = quantity,
+                        NumShares = quantity
+                    };
+
+                    var dayBlock = new Block
+                    {
+                        Id = Guid.NewGuid().ToString(),
                         ExternalBuyOrderId = buyOrderId,
                         ExternalSellOrderId = sellOrderId,
                         ExternalStopLossOrderId = stopLossOrderId,
@@ -74,6 +90,9 @@ namespace TradingService.TradeManagement
                         DayBlock = true
                     };
 
+                    userBlock.Blocks.Add(dayBlock);
+
+
                     // The Azure Cosmos DB endpoint for running this sample.
                     var endpointUri = Environment.GetEnvironmentVariable("EndPointUri");
 
@@ -82,17 +101,17 @@ namespace TradingService.TradeManagement
 
                     // The name of the database and container we will create
                     var databaseId = "Tracker";
-                    var containerId = "Blocks";
+                    var containerId = "ArchiveBlocksDay";
 
                     // Connect to Cosmos DB using endpoint
                     var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
                     var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-                    var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
+                    var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/UserId");
 
                     // Save block to Cosmos DB
                     try
                     {
-                        var blockResponse = await container.CreateItemAsync<Block>(dayBlock, new PartitionKey(dayBlock.Symbol));
+                        var blockResponse = await container.CreateItemAsync(userBlock, new PartitionKey(userBlock.UserId));
                     }
                     catch (CosmosException ex)
                     {

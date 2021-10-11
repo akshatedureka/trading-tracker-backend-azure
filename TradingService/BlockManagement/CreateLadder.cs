@@ -73,7 +73,7 @@ namespace TradingService.BlockManagement
 
                 // Check if ladder is added already, if so, return a conflict result
                 var existingLadders = userLadder.Ladders.ToList();
-                if (existingLadders.Any(symbolToCheck => symbolToCheck.Symbol == ladderToAdd.Symbol))
+                if (existingLadders.Any(l => l.Symbol == ladderToAdd.Symbol))
                 {
                     return new ConflictResult();
                 }

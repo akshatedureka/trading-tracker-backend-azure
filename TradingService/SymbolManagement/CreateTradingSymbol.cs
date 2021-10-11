@@ -65,7 +65,7 @@ namespace TradingService.SymbolManagement
 
                 // Check if symbol is added already, if so, return a conflict result
                 var existingSymbols = userSymbol.Symbols.ToList();
-                if (existingSymbols.Any(symbolToCheck => symbolToCheck.Name == symbol))
+                if (existingSymbols.Any(s => s.Name == symbol))
                 {
                     return new ConflictResult();
                 }

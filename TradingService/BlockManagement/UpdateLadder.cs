@@ -11,8 +11,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.BlockManagement.Models;
 using TradingService.Common.Repository;
-using TradingService.SymbolManagement.Models;
-using TradingService.SymbolManagement.Transfer;
 
 namespace TradingService.BlockManagement
 {

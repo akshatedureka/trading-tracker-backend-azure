@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
+using TradingService.Account.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Models;
 using TradingService.SymbolManagement.Models;
@@ -70,20 +71,21 @@ namespace TradingService.TradeManagement
                 log.LogError("Issue getting block archives from Cosmos DB item {ex}", ex);
             }
 
-            foreach (var tradeData in blocks.SelectMany(block => tradingData.Where(t => block.Symbol == t.Symbol)))
-            {
-                tradeData.ArchiveProfit = blocks.Where(b => b.Symbol == tradeData.Symbol).Sum(b => (b.SellOrderFilledPrice - b.BuyOrderFilledPrice) * b.NumShares);
-            }
+            //foreach (var tradeData in blocks.SelectMany(block => tradingData.Where(t => block.Symbol == t.Symbol)))
+            //{
+            //    tradeData.ArchiveProfit = blocks.Where(b => b.Symbol == tradeData.Symbol).Sum(b => (b.SellOrderFilledPrice - b.BuyOrderFilledPrice) * b.NumShares);
+            //}
 
             // Add in position data
-            var positions = await Order.GetOpenPositions();
+            //var positions = await Order.GetOpenPositions(); // ToDo: Update similar to gettradeingdataswing
+            var positions = new List<Position>();
 
             foreach (var position in positions)
             {
                 foreach (var tradeData in tradingData.Where(t => position.Symbol == t.Symbol))
                 {
                     tradeData.CurrentQuantity = position.Quantity;
-                    tradeData.CurrentProfit = position.UnrealizedProfitLoss;
+                    //tradeData.CurrentProfit = position.UnrealizedProfitLoss; // ToDo: Fix with the above todo
                 }
             }
 
