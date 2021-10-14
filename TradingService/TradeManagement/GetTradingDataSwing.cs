@@ -21,6 +21,7 @@ namespace TradingService.TradeManagement
     public class GetTradingDataSwing
     {
         private readonly IConfiguration _configuration;
+
         public GetTradingDataSwing(IConfiguration configuration)
         {
             _configuration = configuration;
@@ -73,15 +74,15 @@ namespace TradingService.TradeManagement
             }
 
             // Add symbol data to return object
-            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
+            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.SwingTrading }).ToList();
 
             // Get archive block data
-            var userArchiveBlocks = new List<ArchiveBlock>();
+            var archiveBlocks = new List<ArchiveBlock>();
 
             // Read archive blocks from Cosmos DB
             try
             {
-                userArchiveBlocks = containerForBlockArchive
+                archiveBlocks = containerForBlockArchive
                     .GetItemLinqQueryable<ArchiveBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId).ToList();
             }
@@ -97,11 +98,11 @@ namespace TradingService.TradeManagement
             }
 
             // Calculate profit for blocks
-            foreach (var userArchiveBlock in userArchiveBlocks)
+            foreach (var archiveBlock in archiveBlocks)
             {
-                foreach (var tradeData in tradingData.Where(tradeData => userArchiveBlock.Symbol == tradeData.Symbol))
+                foreach (var tradeData in tradingData.Where(tradeData => archiveBlock.Symbol == tradeData.Symbol))
                 {
-                    tradeData.ArchiveProfit += userArchiveBlock.Profit;
+                    tradeData.ArchiveProfit += archiveBlock.Profit;
                 }
             }
 

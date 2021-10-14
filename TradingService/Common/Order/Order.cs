@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Alpaca.Markets;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using TradingService.Common.Models;
 
 namespace TradingService.Common.Order
@@ -19,51 +17,17 @@ namespace TradingService.Common.Order
         private static readonly IAlpacaDataClient AlpacaDataClient =
             Environments.Paper.GetAlpacaDataClient(new SecretKey(AlpacaAPIKey, AlpacaAPISecret));
 
-        public static async Task<Guid> CreateNewOrder(OrderSide orderSide, OrderType orderType, string symbol, long numShares,
-            decimal orderPrice)
+        public static async Task<Guid> CreateStopLimitOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice)
         {
-            var StopLimitOrderOffset = 0.01M; // ToDo research percentage based? currentPrice/1000?
-            switch (orderType)
-            {
-                case OrderType.Limit:
-                    try
-                    {
-                        var order = await AlpacaTradingClient.PostOrderAsync(orderSide
-                            .Limit(symbol, numShares, orderPrice).WithDuration(TimeInForce.Gtc));
-                        return order.OrderId;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Error while creating Limit order in Alpaca {e}: ", e);
-                        throw;
-                    }
-                case OrderType.StopLimit:
-                    try
-                    {
-                        var order = await AlpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, numShares, orderPrice - StopLimitOrderOffset, orderPrice).WithDuration(TimeInForce.Gtc));
-                        return order.OrderId;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Error while creating StopLimit order in Alpaca {e}: ", e);
-                        throw;
-                    }
-                case OrderType.Market:
-                    try
-                    {
-                        var order = await AlpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, numShares).WithDuration(TimeInForce.Gtc));
-                        return order.OrderId;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Error while creating Market order in Alpaca {e}: ", e);
-                        throw;
-                    }
-                default:
-                    break;
-            }
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaTradingClient =
+                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
 
-            return new Guid();
+            var stopLimitOrder = await alpacaTradingClient.PostOrderAsync(orderSide
+                .StopLimit(symbol, quantity, stopPrice, limitPrice));
+
+            return stopLimitOrder.OrderId;
         }
 
         public static async Task<BracketOrderIds> CreateLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
@@ -100,6 +64,18 @@ namespace TradingService.Common.Order
                 StopLossOrderId =
                     bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
             };
+        }
+        public static async Task<Guid> CreateTrailingStopOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal trailOffset)
+        {
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaTradingClient =
+                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+
+            var trailingStopOrder =
+                await alpacaTradingClient.PostOrderAsync(orderSide.TrailingStop(symbol, quantity, TrailOffset.InDollars(trailOffset)));
+
+            return trailingStopOrder.OrderId;
         }
 
         public static async Task<decimal> GetCurrentPrice(IConfiguration config, string userId, string symbol)
@@ -142,11 +118,16 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<bool> CancelOrder(Guid externalOrderId)
+        public static async Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId)
         {
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaTradingClient =
+                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+
             try
             {
-                var isOrderCanceled = await AlpacaTradingClient.DeleteOrderAsync(externalOrderId);
+                var isOrderCanceled = await alpacaTradingClient.DeleteOrderAsync(externalOrderId);
                 return isOrderCanceled;
             }
             catch (Exception e)
@@ -175,12 +156,37 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders()
+        public static async Task<List<IOrder>> GetOpenOrders(IConfiguration config, string userId)
         {
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaTradingClient =
+                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+
+            try
+            {
+                var orders = await alpacaTradingClient.ListOrdersAsync(
+                    new ListOrdersRequest { OrderStatusFilter = OrderStatusFilter.Open });
+                return orders.ToList();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while getting open orders in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
+        public static async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders(IConfiguration config, string userId)
+        {
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaTradingClient =
+                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+
             // Delete all open positions, cancels all open orders before liquidating
             try
             {
-                var result = await AlpacaTradingClient.DeleteAllPositionsAsync(new DeleteAllPositionsRequest { CancelOrders = true });
+                var result = await alpacaTradingClient.DeleteAllPositionsAsync(new DeleteAllPositionsRequest { CancelOrders = true });
                 var positionStatus = result.ToList();
                 //positionStatus[0].Symbol;
                 //positionStatus[0].IsSuccess;
@@ -243,7 +249,6 @@ namespace TradingService.Common.Order
                     DateBuyOrderFilled = DateTime.Now,
                     DateSellOrderFilled = DateTime.Now,
                     SellOrderFilledPrice = positionData.AssetCurrentPrice,
-                    DayBlock = false,
                     Profit = positionData.AssetCurrentPrice - positionData.AverageEntryPrice
                 };
 
@@ -255,5 +260,6 @@ namespace TradingService.Common.Order
                 return null;
             }
         }
+
     }
 }

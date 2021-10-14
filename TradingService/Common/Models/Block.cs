@@ -37,8 +37,6 @@ namespace TradingService.Common.Models
         public bool StopLossOrderCreated { get; set; }
         [JsonProperty(PropertyName = "stopLossOrderPrice")]
         public decimal StopLossOrderPrice { get; set; }
-        [JsonProperty(PropertyName = "dayBlock")]
-        public bool DayBlock { get; set; }
 
         public override string ToString()
         {

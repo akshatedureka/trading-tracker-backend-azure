@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace TradeUpdates
+namespace TradeUpdateService
 {
     public interface ITradeUpdateListener
     {

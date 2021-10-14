@@ -11,8 +11,10 @@ namespace TradingService.SymbolManagement.Models
         public string Name { get; set; }
         [JsonProperty(PropertyName = "active")]
         public bool Active { get; set; }
-        [JsonProperty(PropertyName = "trading")]
-        public bool Trading { get; set; }
+        [JsonProperty(PropertyName = "swingTrading")]
+        public bool SwingTrading { get; set; }
+        [JsonProperty(PropertyName = "dayTrading")]
+        public bool DayTrading { get; set; }
         [JsonProperty(PropertyName = "dateCreated")]
         public DateTime DateCreated { get; set; }
 

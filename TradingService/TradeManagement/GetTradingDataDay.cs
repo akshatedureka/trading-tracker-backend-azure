@@ -9,83 +9,110 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
-using TradingService.Account.Models;
+using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
 using TradingService.Common.Models;
+using TradingService.Common.Repository;
 using TradingService.SymbolManagement.Models;
 using TradingService.TradeManagement.Models;
 
 namespace TradingService.TradeManagement
 {
-    public static class GetTradingDataDay
+    public class GetTradingDataDay
     {
+        private readonly IConfiguration _configuration;
+
+        public GetTradingDataDay(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [FunctionName("GetTradingDataDay")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to get symbols.");
 
-            // The Azure Cosmos DB endpoint for running this sample.
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri"); // ToDo: Centralize config values to common project?
-
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
+            var userId = req.Headers["From"].FirstOrDefault();
 
             // The name of the database and container we will create
-            var databaseId = "Tracker";
-            var containerId = "Symbols";
-            var containerIdBlockArchive = "BlocksArchive";
+            const string databaseId = "Tracker";
+            const string containerIdForSymbols = "Symbols";
+            const string containerIdForBlockDayArchive = "BlocksDayArchive";
 
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/name");
-            var containerBlockArchive = (Container)await database.CreateContainerIfNotExistsAsync(containerIdBlockArchive, "/symbol");
+            var containerForSymbols = await Repository.GetContainer(databaseId, containerIdForSymbols);
+            var containerForDayBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockDayArchive);
+
             var symbols = new List<Symbol>();
 
-            // Add symbol data
             // Read symbols from Cosmos DB
             try
             {
-                symbols = container.GetItemLinqQueryable<Symbol>(allowSynchronousQueryExecution: true).ToList();
+                var userSymbolResponse = containerForSymbols
+                    .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+                if (userSymbolResponse != null)
+                {
+                    symbols = userSymbolResponse.Symbols;
+                }
+                else
+                {
+                    return new NoContentResult();
+                }
             }
             catch (CosmosException ex)
             {
                 log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex);
+                return new BadRequestObjectResult("Error getting symbols from DB: " + ex);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue getting symbols {ex}", ex);
+                return new BadRequestObjectResult("Error getting symbols:" + ex);
             }
 
-            var tradingData = symbols.Select(symbol => new TradingData {SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading}).ToList();
+            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.DayTrading }).ToList();
 
             // Add in archive data
-            var blocks = new List<Block>();
+            var archiveBlocks = new List<ArchiveBlock>();
 
-            // Read block archives from Cosmos DB for today only
+            // Read archive blocks from Cosmos DB
             try
             {
-                blocks = containerBlockArchive.GetItemLinqQueryable<Block>(allowSynchronousQueryExecution: true)
-                    .Where(b => b.DateCreated >= DateTime.UtcNow.Date).ToList();
+                archiveBlocks = containerForDayBlockArchive
+                    .GetItemLinqQueryable<ArchiveBlock>(allowSynchronousQueryExecution: true)
+                    .Where(b => b.UserId == userId).ToList();
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue getting block archives from Cosmos DB item {ex}", ex);
+                log.LogError("Issue getting archive blocks from Cosmos DB item {ex}", ex);
+                return new BadRequestObjectResult("Error getting archive blocks from DB: " + ex);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue getting archive blocks {ex}", ex);
+                return new BadRequestObjectResult("Error getting archive blocks:" + ex);
             }
 
-            //foreach (var tradeData in blocks.SelectMany(block => tradingData.Where(t => block.Symbol == t.Symbol)))
-            //{
-            //    tradeData.ArchiveProfit = blocks.Where(b => b.Symbol == tradeData.Symbol).Sum(b => (b.SellOrderFilledPrice - b.BuyOrderFilledPrice) * b.NumShares);
-            //}
+            // Calculate profit for blocks
+            foreach (var archiveBlock in archiveBlocks)
+            {
+                foreach (var tradeData in tradingData.Where(tradeData => archiveBlock.Symbol == tradeData.Symbol))
+                {
+                    tradeData.ArchiveProfit += archiveBlock.Profit;
+                }
+            }
 
             // Add in position data
-            //var positions = await Order.GetOpenPositions(); // ToDo: Update similar to gettradeingdataswing
-            var positions = new List<Position>();
+            var positions = await Order.GetOpenPositions(_configuration, userId);
 
             foreach (var position in positions)
             {
                 foreach (var tradeData in tradingData.Where(t => position.Symbol == t.Symbol))
                 {
                     tradeData.CurrentQuantity = position.Quantity;
-                    //tradeData.CurrentProfit = position.UnrealizedProfitLoss; // ToDo: Fix with the above todo
+                    tradeData.CurrentProfit = position.UnrealizedProfitLoss;
                 }
             }
 

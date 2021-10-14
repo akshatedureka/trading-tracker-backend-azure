@@ -1,7 +1,7 @@
 ﻿using System;
 using Alpaca.Markets;
 
-namespace TradeUpdates.Models
+namespace TradeUpdateService.Models
 {
     public class OrderUpdateMessage
     {

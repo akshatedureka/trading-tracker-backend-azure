@@ -28,8 +28,10 @@ namespace TradingService.TradeManagement
         private static readonly string databaseId = "Tracker";
         private static readonly string containerId = "Blocks";
         private static readonly string containerArchiveId = "BlocksArchive";
+        private static readonly string containerBlocksDayArchiveId = "BlocksDayArchive";
         private static Container _container;
         private static Container _containerArchive;
+        private static Container _containerBlocksDayArchive;
         private const int MaxNumShares = 50;
         private static ILogger _log;
 
@@ -38,6 +40,8 @@ namespace TradingService.TradeManagement
         {
             _container = await Repository.GetContainer(databaseId, containerId);
             _containerArchive = await Repository.GetContainer(databaseId, containerArchiveId);
+            _containerBlocksDayArchive = await Repository.GetContainer(databaseId, containerBlocksDayArchiveId);
+
             _log = log;
 
             var orderUpdateMessage = JsonConvert.DeserializeObject<OrderUpdateMessage>(myQueueItem);
@@ -58,10 +62,33 @@ namespace TradingService.TradeManagement
         private async Task UpdateBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice)
         {
             // Buy order has been executed, update block to record buy order has been filled
+            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+
+            // First search if a day trade
+            var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
+
+            if (dayBlock != null)
+            {
+                // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
+                var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Sell, userId, symbol,
+                    dayBlock.NumShares, 0.05M);
+
+                // Update day block with buy order executed and external sell order id
+                dayBlock.DateBuyOrderFilled = DateTime.Now;
+                dayBlock.BuyOrderFilledPrice = executedBuyPrice;
+                dayBlock.ExternalSellOrderId = orderId;
+
+                var dayBlockReplaceResponse = await _containerBlocksDayArchive.ReplaceItemAsync(dayBlock, dayBlock.Id, new PartitionKey(dayBlock.UserId));
+                _log.LogInformation($"Day block has been updated for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+
+                return;
+            }
+            
+            // If not day trade, search for swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
             if (userBlock == null)
             {
-                _log.LogError("Could not find user block for user id {userId} and symbol {symbol} at: {time}", userId, symbol, DateTimeOffset.Now);
+                _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}");
                 return;
             }
 
@@ -77,52 +104,68 @@ namespace TradingService.TradeManagement
             }
             else
             {
-                _log.LogError("Could not find block for user id {userId} and symbol {symbol} at: {time}", userId, symbol, DateTimeOffset.Now);
+                _log.LogError($"Could not find block for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
                 return;
             }
-            _log.LogInformation("Buy order has been executed for block id {blockId} for user id {user id} and symbol {symbol} at: {time}", blockToUpdate.Id, userId, symbol, DateTimeOffset.Now);
 
 
             //TESTblock.ExternalSellOrderId = new Guid("00000000-0000-0000-0000-000000000002");
 
-            if (!blockToUpdate.DayBlock)
+            var currentBlockId = Convert.ToInt64(blockToUpdate.Id);
+            var blockAbove = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId + 1).ToString());
+            var blockBelow = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId - 1).ToString());
+
+            // Check if buy order above current block has been created, if not, create it
+            var orderIdsAbove = await CreateBuyOrderAboveIfNotCreated(blockAbove, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
+
+            if (orderIdsAbove != null)
             {
-                var currentBlockId = Convert.ToInt64(blockToUpdate.Id);
-                var blockAbove = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId + 1).ToString());
-                var blockBelow = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId - 1).ToString());
-
-                // Check if buy order above current block has been created, if not, create it
-                var orderIdsAbove = await CreateBuyOrderAboveIfNotCreated(blockAbove, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
-
-                if (orderIdsAbove != null)
-                {
-                    // Update block with new orderIds in DB
-                    blockAbove.ExternalBuyOrderId = orderIdsAbove.BuyOrderId;
-                    blockAbove.ExternalSellOrderId = orderIdsAbove.SellOrderId;
-                    blockAbove.ExternalStopLossOrderId = orderIdsAbove.StopLossOrderId;
-                    blockAbove.BuyOrderCreated = true;
-                }
-
-                // Check if buy order below current block has been created, if not, create it
-                var orderIdsBelow = await CreateBuyOrderBelowIfNotCreated(blockBelow, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
-
-                if (orderIdsBelow != null)
-                {
-                    // Update block with new orderIds in DB
-                    blockBelow.ExternalBuyOrderId = orderIdsBelow.BuyOrderId;
-                    blockBelow.ExternalSellOrderId = orderIdsBelow.SellOrderId;
-                    blockBelow.ExternalStopLossOrderId = orderIdsBelow.StopLossOrderId;
-                    blockBelow.BuyOrderCreated = true;
-                }
-
-                var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                _log.LogInformation("Saved block id {blockId} to DB with sell order created flag to true at: {time}", userBlock.Id, DateTimeOffset.Now);
+                // Update block with new orderIds in DB
+                blockAbove.ExternalBuyOrderId = orderIdsAbove.BuyOrderId;
+                blockAbove.ExternalSellOrderId = orderIdsAbove.SellOrderId;
+                blockAbove.ExternalStopLossOrderId = orderIdsAbove.StopLossOrderId;
+                blockAbove.BuyOrderCreated = true;
             }
+
+            // Check if buy order below current block has been created, if not, create it
+            var orderIdsBelow = await CreateBuyOrderBelowIfNotCreated(blockBelow, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
+
+            if (orderIdsBelow != null)
+            {
+                // Update block with new orderIds in DB
+                blockBelow.ExternalBuyOrderId = orderIdsBelow.BuyOrderId;
+                blockBelow.ExternalSellOrderId = orderIdsBelow.SellOrderId;
+                blockBelow.ExternalStopLossOrderId = orderIdsBelow.StopLossOrderId;
+                blockBelow.BuyOrderCreated = true;
+            }
+
+            var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+            _log.LogInformation("Saved block id {blockId} to DB with sell order created flag to true at: {time}", userBlock.Id, DateTimeOffset.Now);
+
         }
 
         private async Task UpdateSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice)
         {
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
+            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+
+            // First search if a day trade
+            var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
+
+            if (dayBlock != null)
+            {
+                // Update day block
+                dayBlock.DateSellOrderFilled = DateTime.Now;
+                dayBlock.SellOrderFilledPrice = executedSellPrice;
+                dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
+
+                var dayBlockReplaceResponse = await _containerBlocksDayArchive.ReplaceItemAsync(dayBlock, dayBlock.Id, new PartitionKey(dayBlock.UserId));
+                _log.LogInformation($"Day block has been updated for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+
+                return;
+            }
+
+            // If not day block, search for swing block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
 
             if (userBlock == null)
@@ -132,24 +175,30 @@ namespace TradingService.TradeManagement
             }
 
             var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
-            blockToUpdate.SellOrderFilledPrice = executedSellPrice;
-
-            _log.LogInformation("Sell order has been executed for block id {id}, external id {externalOrderId} and saved to DB at: {time}", blockToUpdate.Id, externalOrderId, DateTimeOffset.Now);
-
-            // Archive block -- ToDo: Create a new queue and function to trigger to archive block
-            // Put message on a queue to be processed by a different function
-
-            await ArchiveBlock(userBlock, blockToUpdate);
-            _log.LogInformation("Created archive record for block id {id} at: {time}", blockToUpdate.Id, DateTimeOffset.Now);
-
-            if (!blockToUpdate.DayBlock)
+            if (blockToUpdate != null)
             {
+                blockToUpdate.SellOrderFilledPrice = executedSellPrice;
+
+                _log.LogInformation(
+                    "Sell order has been executed for block id {id}, external id {externalOrderId} and saved to DB at: {time}",
+                    blockToUpdate.Id, externalOrderId, DateTimeOffset.Now);
+
+                // Archive block -- ToDo: Create a new queue and function to trigger to archive block
+                // Put message on a queue to be processed by a different function
+
+                await ArchiveBlock(userBlock, blockToUpdate);
+                _log.LogInformation("Created archive record for block id {id} at: {time}", blockToUpdate.Id,
+                    DateTimeOffset.Now);
+
+
                 // Replace block with new orders
-                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares,
+                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId,
+                    userBlock.Symbol, userBlock.NumShares,
                     blockToUpdate.BuyOrderPrice, blockToUpdate.SellOrderPrice, blockToUpdate.StopLossOrderPrice);
                 _log.LogInformation(
                     "Replacement buy order created for block id {id}, symbol {symbol}, external buy id {externalBuyId}, external sell id {externalSellId}, external stop id {externalStopId} and saved to DB at: {time}",
-                    blockToUpdate.Id, userBlock.Symbol, orderIds.BuyOrderId, orderIds.SellOrderId, orderIds.StopLossOrderId, DateTimeOffset.Now);
+                    blockToUpdate.Id, userBlock.Symbol, orderIds.BuyOrderId, orderIds.SellOrderId,
+                    orderIds.StopLossOrderId, DateTimeOffset.Now);
 
                 // Reset block
                 //TESTblock.ExternalBuyOrderId = new Guid("00000000-0000-0000-0000-000000000001");
@@ -166,9 +215,36 @@ namespace TradingService.TradeManagement
                 var blockReplaceResponse =
                     await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
 
-                _log.LogInformation("Block reset for block id {id} symbol {symbol} and saved to DB at: {time}", blockToUpdate.Id, userBlock.Symbol,
+                _log.LogInformation("Block reset for block id {id} symbol {symbol} and saved to DB at: {time}",
+                    blockToUpdate.Id, userBlock.Symbol,
                     DateTimeOffset.Now);
             }
+            else
+            {
+                _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            }
+        }
+
+        private async Task<ArchiveBlock> GetArchiveDayBlockIfExists(string userId, Guid externalOrderId)
+        {
+            // Read user blocks from Cosmos DB
+            var archiveDayBlock = new List<ArchiveBlock>();
+            try
+            {
+                using var setIterator = _containerBlocksDayArchive.GetItemLinqQueryable<ArchiveBlock>()
+                    .Where(b => b.UserId == userId && (b.ExternalBuyOrderId == externalOrderId || b.ExternalSellOrderId == externalOrderId))
+                    .ToFeedIterator();
+                while (setIterator.HasMoreResults)
+                {
+                    archiveDayBlock.AddRange(await setIterator.ReadNextAsync());
+                }
+            }
+            catch (CosmosException ex)
+            {
+                _log.LogError("Issue getting archive day block from Cosmos DB item {ex}", ex);
+            }
+
+            return archiveDayBlock.FirstOrDefault();
         }
 
         private async Task<UserBlock> GetUserBlockByUserIdAndSymbol(string userId, string symbol)
@@ -192,41 +268,6 @@ namespace TradingService.TradeManagement
 
             return userBlocks.FirstOrDefault();
         }
-
-        //private async Task<Block> GetBlockByExternalSellOrderId(Guid externalOrderId)
-        //{
-        //    // Read blocks from Cosmos DB
-        //    var blocks = new List<Block>();
-        //    try
-        //    {
-        //        using var setIterator = _container.GetItemLinqQueryable<Block>()
-        //            .Where(b => b.ExternalSellOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId)
-        //            .ToFeedIterator();
-        //        while (setIterator.HasMoreResults)
-        //        {
-        //            blocks.AddRange(await setIterator.ReadNextAsync());
-        //        }
-        //    }
-        //    catch (CosmosException ex)
-        //    {
-        //        _log.LogError("Issue creating Cosmos DB item {ex}", ex);
-        //    }
-
-        //    return blocks.FirstOrDefault();
-        //}
-
-        //private async Task<UserBlock> GetBlockById(long id, string symbol)
-        //{
-        //    try
-        //    {
-        //        return await _container.ReadItemAsync<UserBlock>(id.ToString(), new PartitionKey(symbol));
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        Console.WriteLine(e);
-        //        throw;
-        //    }
-        //}
 
         private async Task<BracketOrderIds> CreateBuyOrderAboveIfNotCreated(Block block, string userId, string symbol, long numShares)
         {

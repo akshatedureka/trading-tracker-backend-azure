@@ -89,8 +89,7 @@ namespace TradingService.BlockManagement
                     ConfidenceLevel = initialConfidenceLevel,
                     BuyOrderPrice = blockPrice.BuyPrice,
                     SellOrderPrice = blockPrice.SellPrice,
-                    StopLossOrderPrice = blockPrice.StopLossPrice,
-                    DayBlock = false
+                    StopLossOrderPrice = blockPrice.StopLossPrice
                 };
 
                 blocks.Add(block);

@@ -1,27 +1,25 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
-using Hangfire;
+using Azure.Storage.Queues;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 
 namespace TradeUpdateService
 {
-    public class ConnectUsers : IConnectUsers
+    public class DayTrading : IDayTrading
     {
         private readonly IConfiguration _configuration;
-        private readonly IBackgroundJobClient _backgroundJobClient;
-        private readonly List<string> _connectedUsers;
+        private QueueClient _queueClient;
 
-        public ConnectUsers(IConfiguration configuration, IBackgroundJobClient backgroundJobClient)
+        public DayTrading(IConfiguration configuration)
         {
             _configuration = configuration;
-            _backgroundJobClient = backgroundJobClient;
-            _connectedUsers = new List<string>();
         }
 
-        public async Task<bool> GetUsersToConnect()
+        public async Task<bool> TriggerDayTrades()
         {
+            // ToDo: check for job already running for user before enqueue
             // The Azure Cosmos DB endpoint for running this sample.
             var endpointUri = _configuration.GetValue<string>("EndPointUri");
 
@@ -39,17 +37,27 @@ namespace TradeUpdateService
             var users = container
                 .GetItemLinqQueryable<Models.User>(allowSynchronousQueryExecution: true).ToList();
 
-            foreach (var user in users)
-            {
-                if (_connectedUsers.Contains(user.UserId)) continue;
+            // Get the connection string from app settings
+            var connectionString = _configuration.GetValue<string>("AzureWebJobsStorage");
 
-                var alpacaAPIKey = _configuration.GetValue<string>("AlpacaPaperAPIKey" + ":" + user.UserId); // ToDo: Set configuration refresh rate
-                var alpacaAPISecret = _configuration.GetValue<string>("AlpacaPaperAPISec" + ":" + user.UserId);
-                _backgroundJobClient.Enqueue<ITradeUpdateListener>(x => x.StartListening(user.UserId, alpacaAPIKey, alpacaAPISecret));
-                _connectedUsers.Add(user.UserId);
+            // Instantiate a QueueClient which will be used to create and manipulate the queue
+            _queueClient = new QueueClient(connectionString, "daytradequeue");
+
+            // Create the queue if it doesn't already exist
+            await _queueClient.CreateIfNotExistsAsync();
+
+            foreach (var userId in users.Select(user => user.UserId))
+            {
+                await _queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(userId)));
             }
             
             return true;
+        }
+
+        private static string Base64Encode(string plainText)
+        {
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return System.Convert.ToBase64String(plainTextBytes);
         }
     }
 }

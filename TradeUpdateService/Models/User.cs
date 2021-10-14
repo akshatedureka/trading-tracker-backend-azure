@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace TradeUpdates.Models
+namespace TradeUpdateService.Models
 {
     public class User
     {

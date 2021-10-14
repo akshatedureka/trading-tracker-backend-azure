@@ -5,10 +5,10 @@ using Alpaca.Markets;
 using Azure.Storage.Queues;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
-using TradeUpdates.Models;
+using TradeUpdateService.Models;
 using Console = System.Console;
 
-namespace TradeUpdates
+namespace TradeUpdateService
 {
     public class TradeUpdateListener : ITradeUpdateListener
     {

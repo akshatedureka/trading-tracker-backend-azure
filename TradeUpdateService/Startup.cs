@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Hangfire;
 using Hangfire.MemoryStorage;
 
-namespace TradeUpdates
+namespace TradeUpdateService
 {
     public class Startup
     {
@@ -22,6 +22,7 @@ namespace TradeUpdates
             services.AddHangfireServer();
             services.AddSingleton<IConnectUsers, ConnectUsers>();
             services.AddTransient<ITradeUpdateListener, TradeUpdateListener>(); //ToDo: Singleton or transient?
+            services.AddTransient<IDayTrading, DayTrading>(); //ToDo: Singleton or transient?
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
         }
 
@@ -45,8 +46,8 @@ namespace TradeUpdates
 
             app.UseHangfireDashboard();
 
-
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
+            RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), Cron.Minutely);
         }
     }
 }

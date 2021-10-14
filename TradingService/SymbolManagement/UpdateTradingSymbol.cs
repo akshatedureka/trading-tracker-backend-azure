@@ -50,7 +50,8 @@ namespace TradingService.SymbolManagement
                 {
                     symbolToUpdate.Name = symbol.Name;
                     symbolToUpdate.Active = symbol.Active;
-                    symbolToUpdate.Trading = symbol.Trading;
+                    symbolToUpdate.SwingTrading = symbol.SwingTrading;
+                    symbolToUpdate.DayTrading = symbol.DayTrading;
                 }
                 else
                 {
