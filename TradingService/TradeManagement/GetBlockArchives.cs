@@ -11,7 +11,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using TradingService.Common.Models;
 
-namespace TradingService.Account
+namespace TradingService.TradeManagement
 {
     public static class GetBlockArchives
     {

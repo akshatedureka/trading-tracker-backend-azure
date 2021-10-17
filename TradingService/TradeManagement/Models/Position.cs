@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace TradingService.Account.Models
+namespace TradingService.TradeManagement.Models
 {
     public class Position
     {
