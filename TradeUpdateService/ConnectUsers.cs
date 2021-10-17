@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Hangfire;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
+using TradeUpdateService.Models;
 
 namespace TradeUpdateService
 {
@@ -31,22 +32,22 @@ namespace TradeUpdateService
             // Connect to Cosmos DB using endpoint
             var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
             const string databaseId = "Tracker";
-            const string containerId = "Users";
+            const string containerId = "Accounts";
 
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/userId");
 
-            var users = container
-                .GetItemLinqQueryable<Models.User>(allowSynchronousQueryExecution: true).ToList();
+            var accounts = container
+                .GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true).ToList();
 
-            foreach (var user in users)
+            foreach (var account in accounts)
             {
-                if (_connectedUsers.Contains(user.UserId)) continue;
+                if (_connectedUsers.Contains(account.UserId) || !account.HasEnteredKeys) continue;
 
-                var alpacaAPIKey = _configuration.GetValue<string>("AlpacaPaperAPIKey" + ":" + user.UserId); // ToDo: Set configuration refresh rate
-                var alpacaAPISecret = _configuration.GetValue<string>("AlpacaPaperAPISec" + ":" + user.UserId);
-                _backgroundJobClient.Enqueue<ITradeUpdateListener>(x => x.StartListening(user.UserId, alpacaAPIKey, alpacaAPISecret));
-                _connectedUsers.Add(user.UserId);
+                var alpacaAPIKey = _configuration.GetValue<string>("AlpacaPaperAPIKey" + ":" + account.UserId); // ToDo: Set configuration refresh rate
+                var alpacaAPISecret = _configuration.GetValue<string>("AlpacaPaperAPISec" + ":" + account.UserId);
+                _backgroundJobClient.Enqueue<ITradeUpdateListener>(x => x.StartListening(account.UserId, account.AccountType, alpacaAPIKey, alpacaAPISecret));
+                _connectedUsers.Add(account.UserId);
             }
             
             return true;

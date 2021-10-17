@@ -14,13 +14,13 @@ using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.TradeManagement.Models;
 
-namespace TradingService.TradeManagement
+namespace TradingService.TradeManagement.Swing
 {
-    public class UpdateBlockFromQueueMsg
+    public class UpdateSwingBlockFromQueueMsg
     {
         private readonly IConfiguration _configuration;
 
-        public UpdateBlockFromQueueMsg(IConfiguration configuration)
+        public UpdateSwingBlockFromQueueMsg(IConfiguration configuration)
         {
             _configuration = configuration;
         }
@@ -28,19 +28,16 @@ namespace TradingService.TradeManagement
         private static readonly string databaseId = "Tracker";
         private static readonly string containerId = "Blocks";
         private static readonly string containerArchiveId = "BlocksArchive";
-        private static readonly string containerBlocksDayArchiveId = "BlocksDayArchive";
         private static Container _container;
         private static Container _containerArchive;
-        private static Container _containerBlocksDayArchive;
         private const int MaxNumShares = 50;
         private static ILogger _log;
 
-        [FunctionName("UpdateBlockFromQueueMsg")]
-        public async Task Run([QueueTrigger("tradeupdatequeue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
+        [FunctionName("UpdateSwingBlockFromQueueMsg")]
+        public async Task Run([QueueTrigger("tradeupdatequeueswing", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
             _container = await Repository.GetContainer(databaseId, containerId);
             _containerArchive = await Repository.GetContainer(databaseId, containerArchiveId);
-            _containerBlocksDayArchive = await Repository.GetContainer(databaseId, containerBlocksDayArchiveId);
 
             _log = log;
 
@@ -63,28 +60,8 @@ namespace TradingService.TradeManagement
         {
             // Buy order has been executed, update block to record buy order has been filled
             _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
-
-            // First search if a day trade
-            var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
-
-            if (dayBlock != null)
-            {
-                // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
-                var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Sell, userId, symbol,
-                    dayBlock.NumShares, 0.05M);
-
-                // Update day block with buy order executed and external sell order id
-                dayBlock.DateBuyOrderFilled = DateTime.Now;
-                dayBlock.BuyOrderFilledPrice = executedBuyPrice;
-                dayBlock.ExternalSellOrderId = orderId;
-
-                var dayBlockReplaceResponse = await _containerBlocksDayArchive.ReplaceItemAsync(dayBlock, dayBlock.Id, new PartitionKey(dayBlock.UserId));
-                _log.LogInformation($"Day block has been updated for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
-
-                return;
-            }
             
-            // If not day trade, search for swing trade block
+            // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
             if (userBlock == null)
             {
@@ -149,23 +126,7 @@ namespace TradingService.TradeManagement
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
             _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
 
-            // First search if a day trade
-            var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
-
-            if (dayBlock != null)
-            {
-                // Update day block
-                dayBlock.DateSellOrderFilled = DateTime.Now;
-                dayBlock.SellOrderFilledPrice = executedSellPrice;
-                dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
-
-                var dayBlockReplaceResponse = await _containerBlocksDayArchive.ReplaceItemAsync(dayBlock, dayBlock.Id, new PartitionKey(dayBlock.UserId));
-                _log.LogInformation($"Day block has been updated for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
-
-                return;
-            }
-
-            // If not day block, search for swing block
+            // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
 
             if (userBlock == null)
@@ -223,28 +184,6 @@ namespace TradingService.TradeManagement
             {
                 _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
             }
-        }
-
-        private async Task<ArchiveBlock> GetArchiveDayBlockIfExists(string userId, Guid externalOrderId)
-        {
-            // Read user blocks from Cosmos DB
-            var archiveDayBlock = new List<ArchiveBlock>();
-            try
-            {
-                using var setIterator = _containerBlocksDayArchive.GetItemLinqQueryable<ArchiveBlock>()
-                    .Where(b => b.UserId == userId && (b.ExternalBuyOrderId == externalOrderId || b.ExternalSellOrderId == externalOrderId))
-                    .ToFeedIterator();
-                while (setIterator.HasMoreResults)
-                {
-                    archiveDayBlock.AddRange(await setIterator.ReadNextAsync());
-                }
-            }
-            catch (CosmosException ex)
-            {
-                _log.LogError("Issue getting archive day block from Cosmos DB item {ex}", ex);
-            }
-
-            return archiveDayBlock.FirstOrDefault();
         }
 
         private async Task<UserBlock> GetUserBlockByUserIdAndSymbol(string userId, string symbol)

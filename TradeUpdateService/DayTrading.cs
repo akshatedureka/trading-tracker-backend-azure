@@ -4,6 +4,8 @@ using Azure.Storage.Queues;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using TradeUpdateService.Enums;
+using TradeUpdateService.Models;
 
 namespace TradeUpdateService
 {
@@ -29,13 +31,13 @@ namespace TradeUpdateService
             // Connect to Cosmos DB using endpoint
             var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
             const string databaseId = "Tracker";
-            const string containerId = "Users";
+            const string containerId = "Accounts";
 
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/userId");
 
-            var users = container
-                .GetItemLinqQueryable<Models.User>(allowSynchronousQueryExecution: true).ToList();
+            var accounts = container
+                .GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true).ToList();
 
             // Get the connection string from app settings
             var connectionString = _configuration.GetValue<string>("AzureWebJobsStorage");
@@ -46,9 +48,9 @@ namespace TradeUpdateService
             // Create the queue if it doesn't already exist
             await _queueClient.CreateIfNotExistsAsync();
 
-            foreach (var userId in users.Select(user => user.UserId))
+            foreach (var account in accounts.Where(account => account.AccountType == AccountTypes.Day))
             {
-                await _queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(userId)));
+                await _queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(account.UserId)));
             }
             
             return true;

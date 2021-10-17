@@ -12,9 +12,8 @@ using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.SymbolManagement.Models;
-using TradingService.TradeManagement.Models;
 
-namespace TradingService.TradeManagement
+namespace TradingService.TradeManagement.Day
 {
     public class CreateDayTradeOrders
     {

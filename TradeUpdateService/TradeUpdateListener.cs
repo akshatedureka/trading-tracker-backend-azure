@@ -5,6 +5,7 @@ using Alpaca.Markets;
 using Azure.Storage.Queues;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using TradeUpdateService.Enums;
 using TradeUpdateService.Models;
 using Console = System.Console;
 
@@ -23,17 +24,19 @@ namespace TradeUpdateService
             _config = config;
         }
 
-        public async Task StartListening(string userId, string alpacaKey, string alpacaSecret)
+        public async Task StartListening(string userId, AccountTypes accountType, string alpacaKey, string alpacaSecret)
         {
             Console.WriteLine("I'm listening as user " + userId);
 
             _userId = userId;
 
+            var queueName = accountType == AccountTypes.Day ? "tradeupdatequeueday" : "tradeupdatequeueswing";
+
             // Get the connection string from app settings
             var connectionString = _config.GetValue<string>("AzureWebJobsStorage");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
-            _queueClient = new QueueClient(connectionString, "tradeupdatequeue");
+            _queueClient = new QueueClient(connectionString, queueName);
 
             // Create the queue if it doesn't already exist
             _queueClient.CreateIfNotExists();

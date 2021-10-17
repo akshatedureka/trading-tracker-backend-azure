@@ -11,39 +11,40 @@ using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
+using TradingService.SymbolManagement.Models;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
-using TradingService.SymbolManagement.Models;
 using TradingService.TradeManagement.Models;
 
-namespace TradingService.TradeManagement
+namespace TradingService.TradeManagement.Swing
 {
-    public class GetTradingDataDay
+    public class GetTradingDataSwing
     {
         private readonly IConfiguration _configuration;
 
-        public GetTradingDataDay(IConfiguration configuration)
+        public GetTradingDataSwing(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        [FunctionName("GetTradingDataDay")]
+        [FunctionName("GetTradingDataSwing")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to get symbols.");
-
             var userId = req.Headers["From"].FirstOrDefault();
 
             // The name of the database and container we will create
             const string databaseId = "Tracker";
             const string containerIdForSymbols = "Symbols";
-            const string containerIdForBlockDayArchive = "BlocksDayArchive";
+            const string containerIdForBlockArchive = "BlocksArchive";
 
             var containerForSymbols = await Repository.GetContainer(databaseId, containerIdForSymbols);
-            var containerForDayBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockDayArchive);
+            var containerForBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockArchive);
 
+
+            // Get symbol data
             var symbols = new List<Symbol>();
 
             // Read symbols from Cosmos DB
@@ -72,15 +73,16 @@ namespace TradingService.TradeManagement
                 return new BadRequestObjectResult("Error getting symbols:" + ex);
             }
 
-            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.DayTrading }).ToList();
+            // Add symbol data to return object
+            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.SwingTrading }).ToList();
 
-            // Add in archive data
+            // Get archive block data
             var archiveBlocks = new List<ArchiveBlock>();
 
             // Read archive blocks from Cosmos DB
             try
             {
-                archiveBlocks = containerForDayBlockArchive
+                archiveBlocks = containerForBlockArchive
                     .GetItemLinqQueryable<ArchiveBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId).ToList();
             }

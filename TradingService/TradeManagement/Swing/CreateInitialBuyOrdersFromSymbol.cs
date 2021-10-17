@@ -14,7 +14,7 @@ using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 
-namespace TradingService.TradeManagement
+namespace TradingService.TradeManagement.Swing
 {
     public class CreateInitialBuyOrdersFromSymbol
     {
