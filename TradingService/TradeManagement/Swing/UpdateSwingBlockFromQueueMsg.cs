@@ -252,8 +252,8 @@ namespace TradingService.TradeManagement.Swing
                 DateBuyOrderFilled = block.DateBuyOrderFilled,
                 DateSellOrderFilled = DateTime.Now,
                 SellOrderFilledPrice = block.SellOrderFilledPrice,
-                DayBlock = false,
-                Profit = block.SellOrderFilledPrice - block.BuyOrderFilledPrice
+                IsShort = false,
+                Profit = (block.SellOrderFilledPrice - block.BuyOrderFilledPrice) * userBlock.NumShares
             };
 
             await _containerArchive.CreateItemAsync(archiveBlock, new PartitionKey(archiveBlock.UserId));

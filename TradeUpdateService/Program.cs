@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace TradeUpdateService
 {
@@ -19,6 +20,10 @@ namespace TradeUpdateService
                         var settings = config.Build();
                         var connection = settings.GetConnectionString("appConfiguration");
                         config.AddAzureAppConfiguration(connection);
-                    }).UseStartup<Startup>());
+                    }).UseStartup<Startup>().ConfigureLogging(logging =>
+                    {
+                        //logging.ClearProviders();
+                        //logging.AddConsole();
+                    }));
     }
 }

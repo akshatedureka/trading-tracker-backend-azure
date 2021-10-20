@@ -31,8 +31,10 @@ namespace TradingService.Common.Models
         public DateTime DateSellOrderFilled { get; set; }
         [JsonProperty(PropertyName = "sellOrderFilledPrice")]
         public decimal SellOrderFilledPrice { get; set; }
-        [JsonProperty(PropertyName = "dayBlock")]
-        public bool DayBlock { get; set; }
+        [JsonProperty(PropertyName = "previousDayClose")]
+        public decimal PreviousDayClose { get; set; }
+        [JsonProperty(PropertyName = "isShort")]
+        public bool IsShort { get; set; }
 
         public override string ToString()
         {

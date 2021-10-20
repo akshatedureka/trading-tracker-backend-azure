@@ -45,7 +45,7 @@ namespace TradingService.TradeManagement.Day
 
             // Get symbols that have day trading active
             var symbols = new List<Symbol>();
-            
+
             try
             {
                 var userSymbolResponse = _containerSymbols
@@ -62,25 +62,29 @@ namespace TradingService.TradeManagement.Day
             {
                 log.LogError("Issue getting symbols {ex}", ex);
             }
-            
+
             // Get open orders
             var openOrders = await Order.GetOpenOrders(_configuration, userId);
             var openOrderSymbols = openOrders.Select(order => order.Symbol).ToList();
 
-            // Loop through symbols and create buy orders for previous day close price, if no order created yet
+            // Get open positions
+            var openPositions = await Order.GetOpenPositions(_configuration, userId);
+            var openPositionSymbols = openPositions.Select(position => position.Symbol).ToList();
+
+            // Loop through symbols and create buy / sell orders for previous day close price, if no order created yet and no open positions
             foreach (var symbol in symbols)
             {
                 var previousDayClose = await Order.GetPreviousDayClose(_configuration, userId, symbol.Name);
                 var currentPrice = await Order.GetCurrentPrice(_configuration, userId, symbol.Name);
-                var limitPrice = previousDayClose + 0.05M;
+                var longLimitPrice = previousDayClose + 0.05M;
+                var shortLimitPrice = previousDayClose - 0.05M;
 
-                if (currentPrice >= previousDayClose || openOrderSymbols.Contains(symbol.Name)) continue;
+                //if (currentPrice > 45) continue;
 
-                // Create buy limit order for previous day close
-                var orderId = await Order.CreateStopLimitOrder(_configuration, OrderSide.Buy, userId, symbol.Name, 100, previousDayClose,
-                    limitPrice);
+                if (openOrderSymbols.Contains(symbol.Name)) continue;
 
-                // Save order to archive day block table
+                if (openPositionSymbols.Contains(symbol.Name)) continue;
+
                 var archiveBlock = new ArchiveBlock()
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -88,8 +92,46 @@ namespace TradingService.TradeManagement.Day
                     UserId = userId,
                     Symbol = symbol.Name,
                     NumShares = 100,
-                    ExternalBuyOrderId = orderId,
+                    PreviousDayClose = previousDayClose
                 };
+
+                if (currentPrice <= previousDayClose) // Go long
+                {
+                    try
+                    {
+                        // Create buy limit order for previous day close
+                        var orderId = await Order.CreateStopLimitOrder(_configuration, OrderSide.Buy, userId, symbol.Name, 100, previousDayClose,
+                            longLimitPrice);
+
+                        archiveBlock.ExternalBuyOrderId = orderId;
+                        archiveBlock.IsShort = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        log.LogError(ex.Message);
+                        continue;
+                    }
+
+                    log.LogInformation($"Day long buy order has been created for symbol {symbol.Name} with previous day close {previousDayClose} current price {currentPrice} stop price {previousDayClose} and limit price {longLimitPrice}." );
+                }
+                else // Go short
+                {
+                    // Create sell limit order for previous day close
+                    try
+                    {
+                        var orderId = await Order.CreateStopLimitOrder(_configuration, OrderSide.Sell, userId, symbol.Name, 100, previousDayClose,
+                            shortLimitPrice);
+                        archiveBlock.ExternalSellOrderId = orderId;
+                        archiveBlock.IsShort = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        log.LogError(ex.Message);
+                        continue;
+                    }
+
+                    log.LogInformation($"Day short sell order has been created for symbol {symbol.Name} with previous day close {previousDayClose} current price {currentPrice} stop price {previousDayClose} and limit price {shortLimitPrice}.");
+                }
 
                 await _containerBlocksDayArchive.CreateItemAsync(archiveBlock, new PartitionKey(archiveBlock.UserId));
             }

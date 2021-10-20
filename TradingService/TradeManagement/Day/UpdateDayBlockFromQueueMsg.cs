@@ -55,24 +55,39 @@ namespace TradingService.TradeManagement.Day
         private async Task UpdateBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice)
         {
             // Buy order has been executed, update block to record buy order has been filled
-            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, executedBuyPrice {executedBuyPrice}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
 
             // Get day trade block
             var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
 
             if (dayBlock != null)
             {
-                // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
-                var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Sell, userId, symbol,
-                    dayBlock.NumShares, 0.05M);
+                if (!dayBlock.IsShort)
+                {
+                    try
+                    {
+                        // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
+                        var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Sell, userId, symbol,
+                            dayBlock.NumShares, .5M);
+                        dayBlock.ExternalSellOrderId = orderId;
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.LogError($"Failure creating long buy order: {ex.Message}");
+                    }
+
+                }
+                else
+                {
+                    dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
+                }
 
                 // Update day block with buy order executed and external sell order id
                 dayBlock.DateBuyOrderFilled = DateTime.Now;
                 dayBlock.BuyOrderFilledPrice = executedBuyPrice;
-                dayBlock.ExternalSellOrderId = orderId;
 
                 var dayBlockReplaceResponse = await _containerBlocksDayArchive.ReplaceItemAsync(dayBlock, dayBlock.Id, new PartitionKey(dayBlock.UserId));
-                _log.LogInformation($"Day block has been updated for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+                _log.LogInformation($"Day block has been updated for buy for short {dayBlock.IsShort} user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
             }
             else
             {
@@ -83,20 +98,38 @@ namespace TradingService.TradeManagement.Day
         private async Task UpdateSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice)
         {
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
-            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, executed sell price {executedSellPrice}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
 
             // Get day block
             var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
 
             if (dayBlock != null)
             {
+                if (dayBlock.IsShort)
+                {
+                    try
+                    {
+                        // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
+                        var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Buy, userId, symbol,
+                            dayBlock.NumShares, .5M);
+                        dayBlock.ExternalBuyOrderId = orderId;
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.LogError($"Failure creating short sell order: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
+                }
+
                 // Update day block
                 dayBlock.DateSellOrderFilled = DateTime.Now;
                 dayBlock.SellOrderFilledPrice = executedSellPrice;
-                dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
 
                 var dayBlockReplaceResponse = await _containerBlocksDayArchive.ReplaceItemAsync(dayBlock, dayBlock.Id, new PartitionKey(dayBlock.UserId));
-                _log.LogInformation($"Day block has been updated for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+                _log.LogInformation($"Day block has been updated for sell for short {dayBlock.IsShort} user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
             }
             else
             {
@@ -120,7 +153,7 @@ namespace TradingService.TradeManagement.Day
             }
             catch (CosmosException ex)
             {
-                _log.LogError("Issue getting archive day block from Cosmos DB item {ex}", ex);
+                _log.LogError($"Issue getting archive day block from Cosmos DB item {ex.Message}");
             }
 
             return archiveDayBlock.FirstOrDefault();

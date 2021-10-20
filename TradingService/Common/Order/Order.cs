@@ -73,7 +73,7 @@ namespace TradingService.Common.Order
                 Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
 
             var trailingStopOrder =
-                await alpacaTradingClient.PostOrderAsync(orderSide.TrailingStop(symbol, quantity, TrailOffset.InDollars(trailOffset)));
+                await alpacaTradingClient.PostOrderAsync(orderSide.TrailingStop(symbol, quantity, TrailOffset.InPercent(trailOffset)));
 
             return trailingStopOrder.OrderId;
         }
