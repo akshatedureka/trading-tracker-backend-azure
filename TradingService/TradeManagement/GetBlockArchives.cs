@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using TradingService.Common.Models;
+using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement
 {
@@ -30,19 +31,16 @@ namespace TradingService.TradeManagement
 
             // The name of the database and container we will create
             var databaseId = "Tracker";
-            var containerId = "BlocksArchive";
+            const string containerIdForBlockArchive = "BlocksArchive";
 
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
-            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/symbol");
+            var containerForBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockArchive);
 
             var blocks = new List<Block>();
 
             // Read block archives from Cosmos DB
             try
             {
-                using var setIterator = container.GetItemLinqQueryable<Block>().ToFeedIterator();
+                using var setIterator = containerForBlockArchive.GetItemLinqQueryable<Block>().ToFeedIterator();
                 while (setIterator.HasMoreResults)
                 {
                     blocks.AddRange(await setIterator.ReadNextAsync());

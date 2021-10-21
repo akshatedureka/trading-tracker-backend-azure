@@ -36,12 +36,14 @@ namespace TradingService.TradeManagement.Swing
         [FunctionName("UpdateSwingBlockFromQueueMsg")]
         public async Task Run([QueueTrigger("tradeupdatequeueswing", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
+
             _container = await Repository.GetContainer(databaseId, containerId);
             _containerArchive = await Repository.GetContainer(databaseId, containerArchiveId);
 
             _log = log;
 
             var orderUpdateMessage = JsonConvert.DeserializeObject<OrderUpdateMessage>(myQueueItem);
+            _log.LogInformation($"Update swing block from queue msg triggered for user {orderUpdateMessage.UserId}, symbol {orderUpdateMessage.Symbol}, external order id {orderUpdateMessage.OrderId}");
 
             if (orderUpdateMessage.OrderSide == OrderSide.Buy)
             {
@@ -52,7 +54,7 @@ namespace TradingService.TradeManagement.Swing
                 await UpdateSellOrderExecuted(orderUpdateMessage.UserId, orderUpdateMessage.Symbol, orderUpdateMessage.OrderId, orderUpdateMessage.ExecutedPrice);
             }
 
-            _log.LogInformation($"C# Queue trigger function processed: {myQueueItem}");
+
 
         }
 
@@ -117,7 +119,7 @@ namespace TradingService.TradeManagement.Swing
             }
 
             var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-            _log.LogInformation("Saved block id {blockId} to DB with sell order created flag to true at: {time}", userBlock.Id, DateTimeOffset.Now);
+            _log.LogInformation($"Saved block id {currentBlockId} to DB with sell order created flag to true at: {DateTimeOffset.Now}");
 
         }
 
