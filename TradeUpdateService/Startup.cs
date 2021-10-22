@@ -47,7 +47,7 @@ namespace TradeUpdateService
             app.UseHangfireDashboard();
 
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
-            RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), Cron.Minutely);
+            RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), "*/5 * * * *");
         }
     }
 }

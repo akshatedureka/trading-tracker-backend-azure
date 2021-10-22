@@ -28,9 +28,9 @@ namespace TradeUpdateService
         {
             Console.WriteLine("I'm listening as user " + userId);
 
-            _userId = userId;
+             _userId = userId;
 
-            var queueName = accountType == AccountTypes.Day ? "tradeupdatequeueday" : "tradeupdatequeueswing";
+            var queueName = accountType == AccountTypes.Swing ? "tradeupdatequeueswing" : "tradeupdatequeuedaymarket";
 
             // Get the connection string from app settings
             var connectionString = _config.GetValue<string>("AzureWebJobsStorage");

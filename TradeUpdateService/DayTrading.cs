@@ -43,16 +43,22 @@ namespace TradeUpdateService
             var connectionString = _configuration.GetValue<string>("AzureWebJobsStorage");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
-            _queueClient = new QueueClient(connectionString, "daytradequeue");
+            //_queueClient = new QueueClient(connectionString, "daytradequeue");
+            _queueClient = new QueueClient(connectionString, "daytrademarketqueue");
 
             // Create the queue if it doesn't already exist
             await _queueClient.CreateIfNotExistsAsync();
 
-            foreach (var account in accounts.Where(account => account.AccountType == AccountTypes.Day))
+            //foreach (var account in accounts.Where(account => account.AccountType == AccountTypes.Day))
+            //{
+            //    await _queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(account.UserId)));
+            //}
+
+            foreach (var account in accounts.Where(account => account.AccountType == AccountTypes.DayLong || account.AccountType == AccountTypes.DayShort))
             {
-                await _queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(account.UserId)));
+                await _queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(account)));
             }
-            
+
             return true;
         }
 

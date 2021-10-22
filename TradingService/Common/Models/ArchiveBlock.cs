@@ -33,6 +33,8 @@ namespace TradingService.Common.Models
         public decimal SellOrderFilledPrice { get; set; }
         [JsonProperty(PropertyName = "previousDayClose")]
         public decimal PreviousDayClose { get; set; }
+        [JsonProperty(PropertyName = "currentPrice")]
+        public decimal CurrentPrice { get; set; }
         [JsonProperty(PropertyName = "isShort")]
         public bool IsShort { get; set; }
 

@@ -5,6 +5,8 @@ namespace TradeUpdateService.Enums
     {
         NotSet = 0,
         Day = 1,
-        Swing = 2
+        Swing = 2,
+        DayLong = 3,
+        DayShort = 4
     }
 }
