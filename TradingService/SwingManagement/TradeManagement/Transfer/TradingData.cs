@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace TradingService.SwingManagement.TradeManagement.Models
+namespace TradingService.SwingManagement.TradeManagement.Transfer
 {
     public class TradingData
     {

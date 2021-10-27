@@ -67,7 +67,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     try
                     {
                         var orderIds = await Order.CreateOneCancelsOtherOrder(_configuration, OrderSide.Sell, userId, symbol,
-                            dayBlock.NumShares, executedBuyPrice + .10M, executedBuyPrice - .05M);
+                            dayBlock.NumShares, executedBuyPrice + .20M, executedBuyPrice - .10M);
                         dayBlock.ExternalSellOrderId = orderIds.TakeProfitId;
                         dayBlock.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                     }

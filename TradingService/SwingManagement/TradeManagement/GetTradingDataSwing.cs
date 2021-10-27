@@ -14,7 +14,7 @@ using TradingService.Common.Order;
 using TradingService.SwingManagement.SymbolManagement.Models;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
-using TradingService.SwingManagement.TradeManagement.Models;
+using TradingService.SwingManagement.TradeManagement.Transfer;
 
 namespace TradingService.SwingManagement.TradeManagement.Swing
 {

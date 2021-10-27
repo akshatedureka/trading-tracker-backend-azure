@@ -278,7 +278,7 @@ namespace TradingService.Common.Order
                     Console.WriteLine($"Waiting for orders to cancel in Alpaca. Count is {numOrders}: ", numOrders);
                 }
 
-                // Delete open position for symbol
+                // Delete open position for symbol ToDo: only delete position if position exists
                 var positionData = await alpacaTradingClient.GetPositionAsync(symbol);
                 var result = await alpacaTradingClient.DeletePositionAsync(new DeletePositionRequest(symbol));
 
