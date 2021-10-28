@@ -10,20 +10,9 @@ namespace TradingService.Common.Order
 {
     public static class Order
     {
-        private static readonly string AlpacaAPIKey = Environment.GetEnvironmentVariable("AlpacaPaperAPIKey");
-        private static readonly string AlpacaAPISecret = Environment.GetEnvironmentVariable("AlpacaPaperAPISecret");
-        private static readonly IAlpacaTradingClient AlpacaTradingClient =
-            Environments.Paper.GetAlpacaTradingClient(new SecretKey(AlpacaAPIKey, AlpacaAPISecret));
-        private static readonly IAlpacaDataClient AlpacaDataClient =
-            Environments.Paper.GetAlpacaDataClient(new SecretKey(AlpacaAPIKey, AlpacaAPISecret));
-
         public static async Task<Guid> CreateMarketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var stopLimitOrder = await alpacaTradingClient.PostOrderAsync(orderSide
                 .Market(symbol, quantity));
 
@@ -32,11 +21,7 @@ namespace TradingService.Common.Order
 
         public static async Task<Guid> CreateStopLimitOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var stopLimitOrder = await alpacaTradingClient.PostOrderAsync(orderSide
                 .StopLimit(symbol, quantity, stopPrice, limitPrice));
 
@@ -45,11 +30,7 @@ namespace TradingService.Common.Order
 
         public static async Task<OneCancelsOtherIds> CreateOneCancelsOtherOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var ocoOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, takeProfitPrice).OneCancelsOther(stopLossPrice));
             
             return new OneCancelsOtherIds()
@@ -62,17 +43,13 @@ namespace TradingService.Common.Order
 
         public static async Task<BracketOrderIds> CreateMarketBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, quantity).Bracket(takeProfitPrice, stopLossPrice));
 
             return new BracketOrderIds
             {
-                BuyOrderId = bracketOrder.OrderId,
-                SellOrderId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
+                ParentOrderId = bracketOrder.OrderId,
+                TakeProfitId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
                 StopLossOrderId =
                     bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
             };
@@ -80,17 +57,13 @@ namespace TradingService.Common.Order
 
         public static async Task<BracketOrderIds> CreateLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
 
             return new BracketOrderIds
             {
-                BuyOrderId = bracketOrder.OrderId,
-                SellOrderId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
+                ParentOrderId = bracketOrder.OrderId,
+                TakeProfitId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
                 StopLossOrderId =
                     bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
             };
@@ -98,28 +71,20 @@ namespace TradingService.Common.Order
 
         public static async Task<BracketOrderIds> CreateStopLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
 
             return new BracketOrderIds
             {
-                BuyOrderId = bracketOrder.OrderId,
-                SellOrderId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
+                ParentOrderId = bracketOrder.OrderId,
+                TakeProfitId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
                 StopLossOrderId =
                     bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
             };
         }
         public static async Task<Guid> CreateTrailingStopOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal trailOffset)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
-
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var trailingStopOrder =
                 await alpacaTradingClient.PostOrderAsync(orderSide.TrailingStop(symbol, quantity, TrailOffset.InPercent(trailOffset)));
 
@@ -130,10 +95,7 @@ namespace TradingService.Common.Order
         {
             try
             {
-                var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-                var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-                var alpacaDataClient =
-                    Environments.Paper.GetAlpacaDataClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+                var alpacaDataClient = GetAlpacaDataClient(config, userId);
 
                 var latestTrade = await alpacaDataClient.GetLatestTradeAsync(symbol);
                 var snapshot = await alpacaDataClient.GetSnapshotAsync("CRCT");
@@ -151,10 +113,7 @@ namespace TradingService.Common.Order
         {
             try
             {
-                var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-                var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-                var alpacaDataClient =
-                    Environments.Paper.GetAlpacaDataClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+                var alpacaDataClient = GetAlpacaDataClient(config, userId);
 
                 var snapshot = await alpacaDataClient.GetSnapshotAsync(symbol);
                 return snapshot.PreviousDailyBar.Close;
@@ -168,10 +127,7 @@ namespace TradingService.Common.Order
 
         public static async Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
             try
             {
@@ -187,10 +143,7 @@ namespace TradingService.Common.Order
 
         public static async Task<List<IPosition>> GetOpenPositions(IConfiguration config, string userId)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
             try
             {
@@ -206,10 +159,7 @@ namespace TradingService.Common.Order
 
         public static async Task<List<IOrder>> GetOpenOrders(IConfiguration config, string userId)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
             try
             {
@@ -226,10 +176,7 @@ namespace TradingService.Common.Order
 
         public static async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders(IConfiguration config, string userId)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
             // Delete all open positions, cancels all open orders before liquidating
             try
@@ -250,10 +197,7 @@ namespace TradingService.Common.Order
 
         public static async Task<ArchiveBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
         {
-            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
-            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
-            var alpacaTradingClient =
-                Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
             try
             {
@@ -307,6 +251,21 @@ namespace TradingService.Common.Order
                 Console.WriteLine($"Error while canceling orders / closing positions in Alpaca {e}: ", e);
                 return null;
             }
+        }
+
+        public static IAlpacaTradingClient GetAlpacaTradingClient(IConfiguration config, string userId)
+        {
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaTradingClient = Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            return alpacaTradingClient;
+        }
+        public static IAlpacaDataClient GetAlpacaDataClient(IConfiguration config, string userId)
+        {
+            var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
+            var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
+            var alpacaDataClient = Environments.Paper.GetAlpacaDataClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
+            return alpacaDataClient;
         }
 
     }
