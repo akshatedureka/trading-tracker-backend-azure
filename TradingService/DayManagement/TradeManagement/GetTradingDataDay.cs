@@ -72,7 +72,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
                 return new BadRequestObjectResult("Error getting symbols:" + ex);
             }
 
-            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.DayTrading }).ToList();
+            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
 
             // Add in archive data
             var archiveBlocks = new List<ArchiveBlock>();

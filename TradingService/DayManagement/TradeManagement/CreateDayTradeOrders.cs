@@ -52,7 +52,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 
-                if (userSymbolResponse != null) symbols = userSymbolResponse.Symbols.Where(s => s.DayTrading).ToList();
+                if (userSymbolResponse != null) symbols = userSymbolResponse.Symbols.Where(s => s.Trading).ToList();
             }
             catch (CosmosException ex)
             {

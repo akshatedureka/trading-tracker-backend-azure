@@ -10,6 +10,9 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using TradingService.Common.Repository;
 using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.DayManagement.SymbolManagement.Transfer;
+using System.IO;
+using Newtonsoft.Json;
 
 namespace TradingService.DayManagement.SymbolManagement
 {
@@ -20,12 +23,13 @@ namespace TradingService.DayManagement.SymbolManagement
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            var symbol = req.Query["symbol"];
             var userId = req.Headers["From"].FirstOrDefault();
-
-            if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(userId))
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var symbolTransfer = JsonConvert.DeserializeObject<SymbolTransfer>(requestBody);
+ 
+            if (symbolTransfer is null || string.IsNullOrEmpty(symbolTransfer.Name) || string.IsNullOrEmpty(userId))
             {
-                return new BadRequestObjectResult("Symbol or user id has not been provided.");
+                return new BadRequestObjectResult("Required data is missing from request.");
             }
 
             const string databaseId = "Tracker";
@@ -36,8 +40,11 @@ namespace TradingService.DayManagement.SymbolManagement
             {
                 Id = Guid.NewGuid().ToString(),
                 DateCreated = DateTime.Now,
-                Name = symbol,
-                Active = true
+                NumShares = symbolTransfer.NumShares,
+                TakeProfitOffset = symbolTransfer.TakeProfitOffset,
+                StopLossOffset = symbolTransfer.StopLossOffset,
+                Name = symbolTransfer.Name,
+                Active = symbolTransfer.Active
             };
 
             try
@@ -65,7 +72,7 @@ namespace TradingService.DayManagement.SymbolManagement
 
                 // Check if symbol is added already, if so, return a conflict result
                 var existingSymbols = userSymbol.Symbols.ToList();
-                if (existingSymbols.Any(s => s.Name == symbol))
+                if (existingSymbols.Any(s => s.Name == symbolTransfer.Name))
                 {
                     return new ConflictResult();
                 }
@@ -78,13 +85,13 @@ namespace TradingService.DayManagement.SymbolManagement
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue creating new symbol in Cosmos DB {ex}", ex);
-                return new BadRequestObjectResult("Error while creating new symbol in Cosmos DB: " + ex);
+                log.LogError($"Issue creating new symbol in Cosmos DB {ex.Message}.");
+                return new BadRequestObjectResult($"Error while creating new symbol in Cosmos DB: {ex.Message}.");
             }
             catch (Exception ex)
             {
-                log.LogError("Issue creating new symbol {ex}", ex);
-                return new BadRequestObjectResult("Error while creating new symbol: " + ex);
+                log.LogError($"Issue creating new symbol {ex.Message}.");
+                return new BadRequestObjectResult($"Error while creating new symbol: {ex.Message}.");
             }
         }
     }

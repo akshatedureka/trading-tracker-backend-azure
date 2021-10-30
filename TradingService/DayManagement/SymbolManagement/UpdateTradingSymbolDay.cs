@@ -23,15 +23,13 @@ namespace TradingService.DayManagement.SymbolManagement
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var symbol = JsonConvert.DeserializeObject<SymbolTransfer>(requestBody);
+            var symbolTransfer = JsonConvert.DeserializeObject<SymbolTransfer>(requestBody);
             var userId = req.Headers["From"].FirstOrDefault();
 
-            if (symbol is null || string.IsNullOrEmpty(symbol.Name))
+            if (symbolTransfer is null || string.IsNullOrEmpty(symbolTransfer.Name))
             {
-                return new BadRequestObjectResult("Data body is null or empty during symbol update request.");
+                return new BadRequestObjectResult("Required data is missing from request.");
             }
-
-            var symbolNameToUpdate = symbol.OldName ?? symbol.Name;
 
             const string databaseId = "Tracker";
             const string containerId = "Symbols";
@@ -44,14 +42,16 @@ namespace TradingService.DayManagement.SymbolManagement
 
                 if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found.");
 
-                var symbolToUpdate = userSymbol.Symbols.FirstOrDefault(s => s.Name == symbolNameToUpdate);
+                var symbolToUpdate = userSymbol.Symbols.FirstOrDefault(s => s.Name == symbolTransfer.Name);
 
                 if (symbolToUpdate != null)
                 {
-                    symbolToUpdate.Name = symbol.Name;
-                    symbolToUpdate.Active = symbol.Active;
-                    symbolToUpdate.SwingTrading = symbol.SwingTrading;
-                    symbolToUpdate.DayTrading = symbol.DayTrading;
+                    symbolToUpdate.Name = symbolTransfer.Name;
+                    symbolToUpdate.Active = symbolTransfer.Active;
+                    symbolToUpdate.NumShares = symbolTransfer.NumShares;
+                    symbolToUpdate.Trading = symbolToUpdate.Trading;
+                    symbolToUpdate.TakeProfitOffset = symbolTransfer.TakeProfitOffset;
+                    symbolToUpdate.StopLossOffset = symbolTransfer.StopLossOffset;
                 }
                 else
                 {
@@ -64,13 +64,13 @@ namespace TradingService.DayManagement.SymbolManagement
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue removing symbol in Cosmos DB {ex}", ex);
-                return new BadRequestObjectResult("Error while updating symbol in Cosmos DB: " + ex);
+                log.LogError($"Issue removing symbol in Cosmos DB {ex.Message}.");
+                return new BadRequestObjectResult($"Error while updating symbol in Cosmos DB: {ex.Message}.");
             }
             catch (Exception ex)
             {
                 log.LogError("Issue removing symbol {ex}", ex);
-                return new BadRequestObjectResult("Error while updating symbol: " + ex);
+                return new BadRequestObjectResult($"Error while updating symbol: {ex.Message}.");
             }
         }
     }
