@@ -16,11 +16,11 @@ using TradingService.SwingManagement.TradeManagement.Models;
 
 namespace TradingService.SwingManagement.TradeManagement.Swing
 {
-    public class UpdateSwingBlockFromQueueMsg
+    public class UpdateSwingLongBlockFromQueueMsg
     {
         private readonly IConfiguration _configuration;
 
-        public UpdateSwingBlockFromQueueMsg(IConfiguration configuration)
+        public UpdateSwingLongBlockFromQueueMsg(IConfiguration configuration)
         {
             _configuration = configuration;
         }
@@ -33,8 +33,8 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
         private const int MaxNumShares = 50;
         private static ILogger _log;
 
-        [FunctionName("UpdateSwingBlockFromQueueMsg")]
-        public async Task Run([QueueTrigger("tradeupdatequeueswing", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
+        [FunctionName("UpdateSwingLongBlockFromQueueMsg")]
+        public async Task Run([QueueTrigger("tradeupdatequeueswinglong", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
 
             _container = await Repository.GetContainer(databaseId, containerId);
@@ -43,7 +43,7 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             _log = log;
 
             var orderUpdateMessage = JsonConvert.DeserializeObject<OrderUpdateMessage>(myQueueItem);
-            _log.LogInformation($"Update swing block from queue msg triggered for user {orderUpdateMessage.UserId}, symbol {orderUpdateMessage.Symbol}, external order id {orderUpdateMessage.OrderId}");
+            _log.LogInformation($"Update swing block from queue msg triggered for user {orderUpdateMessage.UserId}, symbol {orderUpdateMessage.Symbol}, external order id {orderUpdateMessage.OrderId}.");
 
             if (orderUpdateMessage.OrderSide == OrderSide.Buy)
             {
@@ -61,13 +61,13 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
         private async Task UpdateBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice)
         {
             // Buy order has been executed, update block to record buy order has been filled
-            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
             
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
             if (userBlock == null)
             {
-                _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}");
+                _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}.");
                 return;
             }
 
@@ -83,7 +83,7 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             }
             else
             {
-                _log.LogError($"Could not find block for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+                _log.LogError($"Could not find block for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
                 return;
             }
 
@@ -100,8 +100,8 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             if (orderIdsAbove != null)
             {
                 // Update block with new orderIds in DB
-                blockAbove.ExternalBuyOrderId = orderIdsAbove.BuyOrderId;
-                blockAbove.ExternalSellOrderId = orderIdsAbove.SellOrderId;
+                blockAbove.ExternalBuyOrderId = orderIdsAbove.ParentOrderId;
+                blockAbove.ExternalSellOrderId = orderIdsAbove.TakeProfitId;
                 blockAbove.ExternalStopLossOrderId = orderIdsAbove.StopLossOrderId;
                 blockAbove.BuyOrderCreated = true;
             }
@@ -112,28 +112,28 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             if (orderIdsBelow != null)
             {
                 // Update block with new orderIds in DB
-                blockBelow.ExternalBuyOrderId = orderIdsBelow.BuyOrderId;
-                blockBelow.ExternalSellOrderId = orderIdsBelow.SellOrderId;
+                blockBelow.ExternalBuyOrderId = orderIdsBelow.ParentOrderId;
+                blockBelow.ExternalSellOrderId = orderIdsBelow.TakeProfitId;
                 blockBelow.ExternalStopLossOrderId = orderIdsBelow.StopLossOrderId;
                 blockBelow.BuyOrderCreated = true;
             }
 
             var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-            _log.LogInformation($"Saved block id {currentBlockId} to DB with sell order created flag to true at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Saved block id {currentBlockId} to DB with sell order created flag to true at: {DateTimeOffset.Now}.");
 
         }
 
         private async Task UpdateSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice)
         {
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
-            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
 
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
 
             if (userBlock == null)
             {
-                _log.LogError("Could not find user block for user id {userId} and symbol {symbol} at: {time}", userId, symbol, DateTimeOffset.Now);
+                _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}.");
                 return;
             }
 
@@ -143,15 +143,13 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
                 blockToUpdate.SellOrderFilledPrice = executedSellPrice;
 
                 _log.LogInformation(
-                    "Sell order has been executed for block id {id}, external id {externalOrderId} and saved to DB at: {time}",
-                    blockToUpdate.Id, externalOrderId, DateTimeOffset.Now);
+                    $"Sell order has been executed for block id {blockToUpdate.Id}, external id {externalOrderId} and saved to DB at: {DateTimeOffset.Now}.");
 
                 // Archive block -- ToDo: Create a new queue and function to trigger to archive block
                 // Put message on a queue to be processed by a different function
 
                 await ArchiveBlock(userBlock, blockToUpdate);
-                _log.LogInformation("Created archive record for block id {id} at: {time}", blockToUpdate.Id,
-                    DateTimeOffset.Now);
+                _log.LogInformation($"Created archive record for block id {blockToUpdate.Id} at: { DateTimeOffset.Now}.");
 
 
                 // Replace block with new orders
@@ -159,14 +157,12 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
                     userBlock.Symbol, userBlock.NumShares,
                     blockToUpdate.BuyOrderPrice, blockToUpdate.SellOrderPrice, blockToUpdate.StopLossOrderPrice);
                 _log.LogInformation(
-                    "Replacement buy order created for block id {id}, symbol {symbol}, external buy id {externalBuyId}, external sell id {externalSellId}, external stop id {externalStopId} and saved to DB at: {time}",
-                    blockToUpdate.Id, userBlock.Symbol, orderIds.BuyOrderId, orderIds.SellOrderId,
-                    orderIds.StopLossOrderId, DateTimeOffset.Now);
+                    $"Replacement buy order created for block id {blockToUpdate.Id}, symbol {userBlock.Symbol}, external buy id {orderIds.ParentOrderId}, external sell id {orderIds.TakeProfitId}, external stop id {orderIds.StopLossOrderId} and saved to DB at: {DateTimeOffset.Now}.");
 
                 // Reset block
                 //TESTblock.ExternalBuyOrderId = new Guid("00000000-0000-0000-0000-000000000001");
-                blockToUpdate.ExternalBuyOrderId = orderIds.BuyOrderId;
-                blockToUpdate.ExternalSellOrderId = orderIds.SellOrderId;
+                blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
+                blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
                 blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                 blockToUpdate.BuyOrderFilled = false;
                 blockToUpdate.BuyOrderFilledPrice = 0;
@@ -178,13 +174,11 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
                 var blockReplaceResponse =
                     await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
 
-                _log.LogInformation("Block reset for block id {id} symbol {symbol} and saved to DB at: {time}",
-                    blockToUpdate.Id, userBlock.Symbol,
-                    DateTimeOffset.Now);
+                _log.LogInformation($"Block reset for block id {blockToUpdate.Id} symbol {userBlock.Symbol} and saved to DB at: {DateTimeOffset.Now}.");
             }
             else
             {
-                _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+                _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
             }
         }
 
@@ -204,7 +198,7 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             }
             catch (CosmosException ex)
             {
-                _log.LogError("Issue getting user block from Cosmos DB item {ex}", ex);
+                _log.LogError($"Issue getting user block from Cosmos DB item {ex.Message}.");
             }
 
             return userBlocks.FirstOrDefault();
@@ -219,7 +213,7 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
 
             // Create new buy order
             var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, numShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-            _log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", symbol, block.BuyOrderPrice);
+            _log.LogInformation($"Created bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
 
             return orderIds;
         }
@@ -231,9 +225,7 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
 
             // Create new buy order
             var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, numShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-            _log.LogInformation(
-                $"A new buy order has been placed for block id {block.Id}. The external order id is {block.ExternalBuyOrderId}",
-                block.Id, block.ExternalBuyOrderId);
+            _log.LogInformation($"A new buy order has been placed for block id {block.Id}. The external order id is {block.ExternalBuyOrderId}.");
 
             return orderIds;
         }

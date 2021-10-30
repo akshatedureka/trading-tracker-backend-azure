@@ -31,8 +31,12 @@ namespace TradingService.Common.Models
         public bool SellOrderCreated { get; set; }
         [JsonProperty(PropertyName = "sellOrderPrice")]
         public decimal SellOrderPrice { get; set; }
+        [JsonProperty(PropertyName = "sellOrderFilled")]
+        public bool SellOrderFilled { get; set; }
         [JsonProperty(PropertyName = "sellOrderFilledPrice")]
         public decimal SellOrderFilledPrice { get; set; }
+        [JsonProperty(PropertyName = "dateSellOrderFilled")]
+        public DateTime DateSellOrderFilled { get; set; }
         [JsonProperty(PropertyName = "stopLossOrderCreated")]
         public bool StopLossOrderCreated { get; set; }
         [JsonProperty(PropertyName = "stopLossOrderPrice")]

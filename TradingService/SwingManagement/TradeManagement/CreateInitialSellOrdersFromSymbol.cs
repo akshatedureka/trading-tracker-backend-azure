@@ -16,20 +16,20 @@ using TradingService.Common.Repository;
 
 namespace TradingService.SwingManagement.TradeManagement.Swing
 {
-    public class CreateInitialBuyOrdersFromSymbol
+    public class CreateInitialSellOrdersFromSymbol
     {
         private readonly IConfiguration _configuration;
-        public CreateInitialBuyOrdersFromSymbol(IConfiguration configuration)
+        public CreateInitialSellOrdersFromSymbol(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        [FunctionName("CreateInitialBuyOrdersFromSymbol")]
+        [FunctionName("CreateInitialSellOrdersFromSymbol")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            log.LogInformation("Creating initial sell order from symbol.");
 
             // Get symbol name
             string symbol = req.Query["symbol"];
@@ -62,7 +62,8 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue getting user symbol block from Cosmos DB item {ex}", ex);
+                log.LogError($"Issue getting user symbol block from Cosmos DB item {ex.Message}");
+                return new BadRequestObjectResult($"Issue getting user symbol block from Cosmos DB item {ex.Message}.");
             }
 
             // Create buy orders in Alpaca
@@ -72,11 +73,11 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             }
             catch (Exception ex)
             {
-                log.LogError("Error creating initial buy orders: { ex}", ex);
-                return new BadRequestObjectResult("Error creating initial buy orders: " + ex);
+                log.LogError("$Error creating initial sell orders: {ex.Message}.");
+                return new BadRequestObjectResult($"Error creating initial sell orders: {ex.Message}.");
             }
 
-            return new OkObjectResult("Successfully created initial buy orders for symbol " + symbol);
+            return new OkObjectResult($"Successfully created initial sell orders for symbol {symbol}.");
         }
 
         private async Task CreateBracketOrdersBasedOnCurrentPrice(UserBlock userBlock, Container container, ILogger log)
@@ -90,44 +91,47 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             // Create limit / stop limit orders for each block above and below current price
             var countAboveAndBelow = 2;
 
-            // Two blocks above
+            // Two blocks below
             for (var x = 0; x < countAboveAndBelow; x++)
             {
-                var block = blocksAbove[x];
-                var stopPrice = block.BuyOrderPrice - (decimal) 0.05;
+                var block = blocksBelow[x];
+                var stopPrice = block.SellOrderPrice + (decimal) 0.05;
+                var stopLossPrice = block.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
 
-                var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", userBlock.Symbol, block.BuyOrderPrice);
+                var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, stopLossPrice);
+                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {stopLossPrice}");
 
                 //ToDo: Refactor to combine with blocks below
                 // Update Cosmos DB item
                 var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 
-                // Update with external buy id generated from Alpaca
-                blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
+                // Update with external order ids generated from Alpaca
+                blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
+                blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
                 blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.BuyOrderCreated = true;
+                blockToUpdate.SellOrderCreated = true;
 
                 // Replace the item with the updated content
                 var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
                 log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders");
             }
 
-            // Two blocks below
+            // Two blocks above
             for (var x = 0; x < countAboveAndBelow; x++)
             {
-                var block = blocksBelow[x];
+                var block = blocksAbove[x];
+                var stopLossPrice = block.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
 
-                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.SellOrderPrice, block.BuyOrderPrice, stopLossPrice);
+                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {stopLossPrice}");
 
                 var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 
                 // Update with external buy id generated from Alpaca
-                blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
+                blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
+                blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
                 blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.BuyOrderCreated = true;
+                blockToUpdate.SellOrderCreated = true;
 
                 // replace the item with the updated content
                 var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
@@ -138,8 +142,8 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
         private List<Block> GetBlocksAboveCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)
         {
             // Get blocks above current price based on percentage
-            var buyOrderPriceMaxAmount = currentPrice + (currentPrice * (percentage / 100));
-            var blocksAbove = blocks.Where(b => b.BuyOrderPrice >= currentPrice && b.BuyOrderPrice <= buyOrderPriceMaxAmount).OrderBy(b => b.BuyOrderPrice).ToList();
+            var sellOrderPriceMaxAmount = currentPrice + (currentPrice * (percentage / 100));
+            var blocksAbove = blocks.Where(b => b.SellOrderPrice >= currentPrice && b.SellOrderPrice <= sellOrderPriceMaxAmount).OrderBy(b => b.SellOrderPrice).ToList();
 
             return blocksAbove;
         }
@@ -147,8 +151,8 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
         private List<Block> GetBlocksBelowCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)
         {
             // Get blocks below current price based on percentage
-            var buyOrderPriceMaxAmount = currentPrice - (currentPrice * (percentage / 100));
-            var blocksBelow = blocks.Where(b => b.BuyOrderPrice < currentPrice && b.BuyOrderPrice >= buyOrderPriceMaxAmount).OrderByDescending(b => b.BuyOrderPrice).ToList();
+            var sellOrderPriceMaxAmount = currentPrice - (currentPrice * (percentage / 100));
+            var blocksBelow = blocks.Where(b => b.SellOrderPrice < currentPrice && b.SellOrderPrice >= sellOrderPriceMaxAmount).OrderByDescending(b => b.SellOrderPrice).ToList();
 
             return blocksBelow;
         }

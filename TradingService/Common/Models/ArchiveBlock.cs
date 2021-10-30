@@ -7,6 +7,8 @@ namespace TradingService.Common.Models
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
+        [JsonProperty(PropertyName = "blockId")]
+        public string BlockId { get; set; }
         [JsonProperty(PropertyName = "userId")]
         public string UserId { get; set; }
         [JsonProperty(PropertyName = "dateCreated")]
