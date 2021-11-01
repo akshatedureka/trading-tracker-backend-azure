@@ -49,8 +49,7 @@ namespace TradingService.DayManagement.SymbolManagement
 
             try
             {
-                var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+                var userSymbol = Queries.GetUserSymbolByUserId(userId).Result;
 
                 if (userSymbol == null) // Initial UserSymbol item creation
                 {
