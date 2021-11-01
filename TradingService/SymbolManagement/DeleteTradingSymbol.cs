@@ -8,13 +8,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using TradingService.Common.Repository;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 
-namespace TradingService.DayManagement.SymbolManagement
+namespace TradingService.SymbolManagement
 {
-    public static class DeleteTradingSymbolDay
+    public static class DeleteTradingSymbol
     {
-        [FunctionName("DeleteTradingSymbolDay")]
+        [FunctionName("DeleteTradingSymbol")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
             ILogger log)

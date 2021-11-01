@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace TradingService.DayManagement.SymbolManagement.Models
+namespace TradingService.SymbolManagement.Models
 {
     public class UserSymbol
     {

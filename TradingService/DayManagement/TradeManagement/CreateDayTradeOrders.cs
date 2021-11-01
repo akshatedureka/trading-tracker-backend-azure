@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 
 namespace TradingService.DayManagement.TradeManagement.Day
 {

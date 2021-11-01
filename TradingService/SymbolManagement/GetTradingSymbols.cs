@@ -9,13 +9,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Cosmos;
 using TradingService.Common.Repository;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 
-namespace TradingService.DayManagement.SymbolManagement
+namespace TradingService.SymbolManagement
 {
-    public static class GetTradingSymbolsDay
+    public static class GetTradingSymbols
     {
-        [FunctionName("GetTradingSymbolsDay")]
+        [FunctionName("GetTradingSymbols")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.User, "get", Route = null)] HttpRequest req,
             ILogger log)

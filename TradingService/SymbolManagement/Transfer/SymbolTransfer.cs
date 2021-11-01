@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace TradingService.DayManagement.SymbolManagement.Transfer
+namespace TradingService.SymbolManagement.Transfer
 {
     public class SymbolTransfer
     {
@@ -16,5 +16,7 @@ namespace TradingService.DayManagement.SymbolManagement.Transfer
         public decimal TakeProfitOffset { get; set; }
         [JsonProperty(PropertyName = "stopLossOffset")]
         public decimal StopLossOffset { get; set; }
+        [JsonProperty(PropertyName = "trading")]
+        public bool Trading { get; set; }
     }
 }

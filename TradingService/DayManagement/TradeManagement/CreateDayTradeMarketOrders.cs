@@ -13,7 +13,7 @@ using TradingService.AccountManagement.Models;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 
 namespace TradingService.DayManagement.TradeManagement.Day
 {
@@ -76,6 +76,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
             var openPositionSymbols = openPositions.Select(position => position.Symbol).ToList();
 
             // Loop through symbols and create buy / sell orders for previous day close price, if no order created yet and no open positions
+            //ToDo: If trading is true on symbol object - update swing trading to just have a trading property rather than day trading and swing trading properties
             foreach (var symbol in symbols)
             {
                 var currentPrice = await Order.GetCurrentPrice(_configuration, userId, symbol.Name);
@@ -92,7 +93,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     DateCreated = DateTime.Now,
                     UserId = userId,
                     Symbol = symbol.Name,
-                    NumShares = 100,
+                    NumShares = symbol.NumShares,
                     CurrentPrice = currentPrice
                 };
 
@@ -101,7 +102,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     try
                     {
                         // Create buy market order
-                        var orderId = await Order.CreateMarketOrder(_configuration, OrderSide.Buy, userId, symbol.Name, 100);
+                        var orderId = await Order.CreateMarketOrder(_configuration, OrderSide.Buy, userId, symbol.Name, symbol.NumShares);
                         
                         archiveBlock.ExternalBuyOrderId = orderId;
                         archiveBlock.IsShort = false;
@@ -119,7 +120,7 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     // Create sell market order
                     try
                     {
-                        var orderId = await Order.CreateMarketOrder(_configuration, OrderSide.Sell, userId, symbol.Name, 100);
+                        var orderId = await Order.CreateMarketOrder(_configuration, OrderSide.Sell, userId, symbol.Name, symbol.NumShares);
 
                         archiveBlock.ExternalSellOrderId = orderId;
                         archiveBlock.IsShort = true;

@@ -12,7 +12,7 @@ using Newtonsoft.Json;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 using TradingService.DayManagement.TradeManagement.Models;
 
 namespace TradingService.DayManagement.TradeManagement.Day
@@ -79,12 +79,12 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     }
                     catch (Exception ex)
                     {
-                        _log.LogError($"Failure creating long buy order: {ex.Message}");
+                        _log.LogError($"Failure creating long sell order: {ex.Message}");
                     }
                 }
                 else
                 {
-                    dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
+                    dayBlock.Profit = (dayBlock.SellOrderFilledPrice - executedBuyPrice) * dayBlock.NumShares;
                 }
 
                 // Update day block with buy order executed and external sell order id
@@ -121,12 +121,12 @@ namespace TradingService.DayManagement.TradeManagement.Day
                     }
                     catch (Exception ex)
                     {
-                        _log.LogError($"Failure creating short sell order: {ex.Message}");
+                        _log.LogError($"Failure creating short buy order: {ex.Message}");
                     }
                 }
                 else
                 {
-                    dayBlock.Profit = (dayBlock.SellOrderFilledPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
+                    dayBlock.Profit = (executedSellPrice - dayBlock.BuyOrderFilledPrice) * dayBlock.NumShares;
                 }
 
                 // Update day block

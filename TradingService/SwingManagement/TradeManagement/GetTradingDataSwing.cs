@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
-using TradingService.SwingManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
 using TradingService.SwingManagement.TradeManagement.Transfer;
@@ -74,7 +74,7 @@ namespace TradingService.SwingManagement.TradeManagement.Swing
             }
 
             // Add symbol data to return object
-            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.SwingTrading }).ToList();
+            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
 
             // Get archive block data
             var archiveBlocks = new List<ArchiveBlock>();

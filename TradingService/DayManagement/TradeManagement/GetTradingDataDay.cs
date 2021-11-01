@@ -13,7 +13,7 @@ using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 using TradingService.DayManagement.TradeManagement.Models;
 
 namespace TradingService.DayManagement.TradeManagement.Day

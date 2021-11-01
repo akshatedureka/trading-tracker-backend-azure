@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using TradingService.DayManagement.SymbolManagement.Models;
+using TradingService.SymbolManagement.Models;
 using System.Linq;
 
 namespace TradingService.Common.Repository
