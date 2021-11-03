@@ -15,9 +15,9 @@ using TradingService.Common.Repository;
 
 namespace TradingService.SymbolManagement
 {
-    public static class UpdateTradingSymbol
+    public static class UpdateTradingStatus
     {
-        [FunctionName("UpdateTradingSymbol")]
+        [FunctionName("UpdateTradingStatus")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
@@ -46,11 +46,7 @@ namespace TradingService.SymbolManagement
 
                 if (symbolToUpdate != null)
                 {
-                    symbolToUpdate.Name = symbolTransfer.Name;
-                    symbolToUpdate.Active = symbolTransfer.Active;
-                    symbolToUpdate.NumShares = symbolTransfer.NumShares;
-                    symbolToUpdate.TakeProfitOffset = symbolTransfer.TakeProfitOffset;
-                    symbolToUpdate.StopLossOffset = symbolTransfer.StopLossOffset;
+                    symbolToUpdate.Trading = symbolTransfer.Trading;
                 }
                 else
                 {
@@ -64,12 +60,12 @@ namespace TradingService.SymbolManagement
             catch (CosmosException ex)
             {
                 log.LogError($"Issue removing symbol in Cosmos DB {ex.Message}.");
-                return new BadRequestObjectResult($"Error while updating symbol in Cosmos DB: {ex.Message}.");
+                return new BadRequestObjectResult($"Error while updating symbol trading status in Cosmos DB: {ex.Message}.");
             }
             catch (Exception ex)
             {
                 log.LogError("Issue removing symbol {ex}", ex);
-                return new BadRequestObjectResult($"Error while updating symbol: {ex.Message}.");
+                return new BadRequestObjectResult($"Error while updating symbol trading status: {ex.Message}.");
             }
         }
     }
