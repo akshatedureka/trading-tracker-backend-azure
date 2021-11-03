@@ -61,7 +61,7 @@ namespace TradingService.TradeManagement.Swing
         private async Task UpdateBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice)
         {
             // Buy order has been executed, update block to record buy order has been filled
-            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
+            _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
             
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
@@ -126,7 +126,7 @@ namespace TradingService.TradeManagement.Swing
         private async Task UpdateSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice)
         {
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
-            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
+            _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
@@ -164,11 +164,14 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
                 blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
                 blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                blockToUpdate.BuyOrderCreated = true;
                 blockToUpdate.BuyOrderFilled = false;
                 blockToUpdate.BuyOrderFilledPrice = 0;
                 blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
                 blockToUpdate.SellOrderCreated = false;
+                blockToUpdate.SellOrderFilled = false;
                 blockToUpdate.SellOrderFilledPrice = 0;
+                blockToUpdate.DateSellOrderFilled = DateTime.MinValue;
 
                 // Replace the item with the updated content
                 var blockReplaceResponse =
@@ -213,7 +216,7 @@ namespace TradingService.TradeManagement.Swing
 
             // Create new buy order
             var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, numShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-            _log.LogInformation($"Created bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
+            _log.LogInformation($"Created long bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
 
             return orderIds;
         }
@@ -225,7 +228,7 @@ namespace TradingService.TradeManagement.Swing
 
             // Create new buy order
             var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, numShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-            _log.LogInformation($"A new buy order has been placed for block id {block.Id}. The external order id is {block.ExternalBuyOrderId}.");
+            _log.LogInformation($"Created long bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
 
             return orderIds;
         }

@@ -120,6 +120,7 @@ namespace TradingService.TradeManagement.Swing
                 var block = blocksBelow[x];
 
                 var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                log.LogInformation("Created bracket order for symbol {symbol} for limit price {limitPrice}", userBlock.Symbol, block.BuyOrderPrice);
 
                 var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 

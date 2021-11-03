@@ -61,7 +61,7 @@ namespace TradingService.TradeManagement.Swing
         private async Task UpdateSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice)
         {
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
-            _log.LogInformation($"Sell order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
+            _log.LogInformation($"Sell order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
                        
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
@@ -124,7 +124,7 @@ namespace TradingService.TradeManagement.Swing
         private async Task UpdateBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice)
         {
             // Buy order has been executed, update block to record buy order has been filled
-            _log.LogInformation($"Buy order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
+            _log.LogInformation($"Buy order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
@@ -164,7 +164,7 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.BuyOrderFilled = false;
                 blockToUpdate.BuyOrderFilledPrice = 0;
                 blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
-                blockToUpdate.SellOrderCreated = false;
+                blockToUpdate.SellOrderCreated = true;
                 blockToUpdate.SellOrderFilled = false;
                 blockToUpdate.SellOrderFilledPrice = 0;
                 blockToUpdate.DateSellOrderFilled = DateTime.MinValue;

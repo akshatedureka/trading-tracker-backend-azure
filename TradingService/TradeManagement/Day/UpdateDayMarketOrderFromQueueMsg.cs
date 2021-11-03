@@ -61,7 +61,7 @@ namespace TradingService.TradeManagement.Day
         private async Task UpdateBuyOrderExecuted(string userId, Symbol symbol, Guid externalOrderId, decimal executedBuyPrice)
         {
             // Buy order has been executed, update block to record buy order has been filled
-            _log.LogInformation($"Buy order executed for user id {userId}, symbol {symbol.Name}, executedBuyPrice {executedBuyPrice}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Buy order executed for day trade for user id {userId}, symbol {symbol.Name}, executedBuyPrice {executedBuyPrice}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
 
             // Get day trade block
             var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
@@ -103,7 +103,7 @@ namespace TradingService.TradeManagement.Day
         private async Task UpdateSellOrderExecuted(string userId, Symbol symbol, Guid externalOrderId, decimal executedSellPrice)
         {
             // Sell order has been executed, create new buy order in Alpaca, archive and reset block
-            _log.LogInformation($"Sell order executed for user id {userId}, symbol {symbol.Name}, executed sell price {executedSellPrice}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
+            _log.LogInformation($"Sell order executed for day trade for user id {userId}, symbol {symbol.Name}, executed sell price {executedSellPrice}, external order id {externalOrderId} at: {DateTimeOffset.Now}");
 
             // Get day block
             var dayBlock = await GetArchiveDayBlockIfExists(userId, externalOrderId);
