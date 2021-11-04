@@ -252,6 +252,7 @@ namespace TradingService.TradeManagement.Swing
             var archiveBlock = new ArchiveBlock()
             {
                 Id = Guid.NewGuid().ToString(),
+                BlockId = block.Id,
                 DateCreated = DateTime.Now,
                 UserId = userBlock.UserId,
                 Symbol = userBlock.Symbol,

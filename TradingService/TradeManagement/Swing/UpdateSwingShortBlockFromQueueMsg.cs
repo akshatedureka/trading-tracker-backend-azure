@@ -261,7 +261,7 @@ namespace TradingService.TradeManagement.Swing
                 DateBuyOrderFilled = DateTime.Now,
                 DateSellOrderFilled = block.DateSellOrderFilled,
                 SellOrderFilledPrice = block.SellOrderFilledPrice,
-                IsShort = false,
+                IsShort = true,
                 Profit = (block.SellOrderFilledPrice - block.BuyOrderFilledPrice) * userBlock.NumShares
             };
 
