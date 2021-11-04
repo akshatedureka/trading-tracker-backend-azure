@@ -62,7 +62,7 @@ namespace TradingService.TradeManagement.Swing
         {
             // Buy order has been executed, update block to record buy order has been filled
             _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
-            
+
             // Get swing trade block
             var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
             if (userBlock == null)
@@ -106,6 +106,7 @@ namespace TradingService.TradeManagement.Swing
                 blockAbove.BuyOrderCreated = true;
             }
 
+            // ToDo: Refactor to separate function 
             // Check if buy order below current block has been created, if not, create it
             var orderIdsBelow = await CreateBuyOrderBelowIfNotCreated(blockBelow, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
 
@@ -140,10 +141,23 @@ namespace TradingService.TradeManagement.Swing
             var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
             if (blockToUpdate != null)
             {
+                _log.LogInformation($"Sell order has been executed for block id {blockToUpdate.Id}, external id {externalOrderId} and saved to DB at: {DateTimeOffset.Now}.");
+
+                // Check if the buy order has been executed, if not, this is an error state
+                var retryAttemptCount = 1;
+                const int maxAttempts = 3;
+                while (!blockToUpdate.BuyOrderFilled || retryAttemptCount <= maxAttempts)
+                {
+                    await Task.Delay(1000); // Wait one second in between attempts
+                    _log.LogError($"Error while updating sell order executed. Buy order has not had BuyOrderFilled flag set to true yet. Retry attempt {retryAttemptCount}");
+                    userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
+                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
+                    retryAttemptCount += 1;
+                }
+
                 blockToUpdate.SellOrderFilledPrice = executedSellPrice;
 
-                _log.LogInformation(
-                    $"Sell order has been executed for block id {blockToUpdate.Id}, external id {externalOrderId} and saved to DB at: {DateTimeOffset.Now}.");
+
 
                 // Archive block -- ToDo: Create a new queue and function to trigger to archive block
                 // Put message on a queue to be processed by a different function

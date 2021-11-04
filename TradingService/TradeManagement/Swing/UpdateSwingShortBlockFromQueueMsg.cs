@@ -138,10 +138,21 @@ namespace TradingService.TradeManagement.Swing
             var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
             if (blockToUpdate != null)
             {
-                blockToUpdate.BuyOrderFilledPrice = executedBuyPrice;
+                _log.LogInformation($"Buy order has been executed for block id {blockToUpdate.Id}, external id {externalOrderId} and saved to DB at: {DateTimeOffset.Now}.");
 
-                _log.LogInformation(
-                    $"Buy order has been executed for block id {blockToUpdate.Id}, external id {externalOrderId} and saved to DB at: {DateTimeOffset.Now}.");
+                // Check if the sell order has been executed, if not, this is an error state
+                var retryAttemptCount = 1;
+                const int maxAttempts = 3;
+                while (!blockToUpdate.SellOrderFilled || retryAttemptCount <= maxAttempts)
+                {
+                    await Task.Delay(1000); // Wait one second in between attempts
+                    _log.LogError($"Error while updating buy order executed. Sell order has not had SellOrderFilled flag set to true yet. Retry attempt {retryAttemptCount}");
+                    userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
+                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
+                    retryAttemptCount += 1;
+                }
+
+                blockToUpdate.BuyOrderFilledPrice = executedBuyPrice;
 
                 // Archive block -- ToDo: Create a new queue and function to trigger to archive block
                 // Put message on a queue to be processed by a different function
