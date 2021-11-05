@@ -53,9 +53,6 @@ namespace TradingService.TradeManagement.Swing
             {
                 await UpdateSellOrderExecuted(orderUpdateMessage.UserId, orderUpdateMessage.Symbol, orderUpdateMessage.OrderId, orderUpdateMessage.ExecutedPrice);
             }
-
-
-
         }
 
         private async Task UpdateBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice)
@@ -64,7 +61,7 @@ namespace TradingService.TradeManagement.Swing
             _log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
             // Get swing trade block
-            var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
+            var userBlock = await Queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
             if (userBlock == null)
             {
                 _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}.");
@@ -86,9 +83,6 @@ namespace TradingService.TradeManagement.Swing
                 _log.LogError($"Could not find block for buy user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
                 return;
             }
-
-
-            //TESTblock.ExternalSellOrderId = new Guid("00000000-0000-0000-0000-000000000002");
 
             var currentBlockId = Convert.ToInt64(blockToUpdate.Id);
             var blockAbove = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId + 1).ToString());
@@ -130,7 +124,7 @@ namespace TradingService.TradeManagement.Swing
             _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
             // Get swing trade block
-            var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
+            var userBlock = await Queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
 
             if (userBlock == null)
             {
@@ -146,25 +140,22 @@ namespace TradingService.TradeManagement.Swing
                 // Check if the buy order has been executed, if not, this is an error state
                 var retryAttemptCount = 1;
                 const int maxAttempts = 3;
-                while (!blockToUpdate.BuyOrderFilled || retryAttemptCount <= maxAttempts)
+                while (!blockToUpdate.BuyOrderFilled && retryAttemptCount <= maxAttempts)
                 {
                     await Task.Delay(1000); // Wait one second in between attempts
                     _log.LogError($"Error while updating sell order executed. Buy order has not had BuyOrderFilled flag set to true yet. Retry attempt {retryAttemptCount}");
-                    userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
+                    userBlock = await Queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
                     blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
                     retryAttemptCount += 1;
                 }
 
                 blockToUpdate.SellOrderFilledPrice = executedSellPrice;
 
-
-
                 // Archive block -- ToDo: Create a new queue and function to trigger to archive block
                 // Put message on a queue to be processed by a different function
 
                 await ArchiveBlock(userBlock, blockToUpdate);
                 _log.LogInformation($"Created archive record for block id {blockToUpdate.Id} at: { DateTimeOffset.Now}.");
-
 
                 // Replace block with new orders
                 var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId,
@@ -197,28 +188,6 @@ namespace TradingService.TradeManagement.Swing
             {
                 _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
             }
-        }
-
-        private async Task<UserBlock> GetUserBlockByUserIdAndSymbol(string userId, string symbol)
-        {
-            // Read user blocks from Cosmos DB
-            var userBlocks = new List<UserBlock>();
-            try
-            {
-                using var setIterator = _container.GetItemLinqQueryable<UserBlock>()
-                    .Where(b => b.UserId == userId && b.Symbol == symbol)
-                    .ToFeedIterator();
-                while (setIterator.HasMoreResults)
-                {
-                    userBlocks.AddRange(await setIterator.ReadNextAsync());
-                }
-            }
-            catch (CosmosException ex)
-            {
-                _log.LogError($"Issue getting user block from Cosmos DB item {ex.Message}.");
-            }
-
-            return userBlocks.FirstOrDefault();
         }
 
         private async Task<BracketOrderIds> CreateBuyOrderAboveIfNotCreated(Block block, string userId, string symbol, long numShares)
