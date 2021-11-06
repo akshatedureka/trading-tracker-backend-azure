@@ -36,13 +36,11 @@ namespace TradingService.TradeManagement.Swing
             var userId = req.Headers["From"].FirstOrDefault();
 
             // The name of the database and container we will create
-            const string databaseId = "Tracker";
             const string containerIdForSymbols = "Symbols";
             const string containerIdForBlockArchive = "BlocksArchive";
 
-            var containerForSymbols = await Repository.GetContainer(databaseId, containerIdForSymbols);
-            var containerForBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockArchive);
-
+            var containerForSymbols = await Repository.GetContainer(containerIdForSymbols);
+            var containerForBlockArchive = await Repository.GetContainer(containerIdForBlockArchive);
 
             // Get symbol data
             var symbols = new List<Symbol>();

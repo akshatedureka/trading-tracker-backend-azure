@@ -31,12 +31,11 @@ namespace TradingService.SymbolManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Symbols";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 

@@ -19,7 +19,6 @@ namespace TradingService.OrderManagement
     {
         private readonly IConfiguration _configuration;
         private static Container _containerArchive;
-        private static readonly string databaseId = "Tracker";
         private static readonly string containerArchiveId = "BlocksArchive";
 
         public CloseOpenPosition(IConfiguration configuration)
@@ -34,7 +33,7 @@ namespace TradingService.OrderManagement
         {
             log.LogInformation("C# HTTP trigger function processed a request to close open positions for symbol.");
             
-            _containerArchive = await Repository.GetContainer(databaseId, containerArchiveId);
+            _containerArchive = await Repository.GetContainer(containerArchiveId);
 
             // Get symbol name
             string symbol = req.Query["symbol"];

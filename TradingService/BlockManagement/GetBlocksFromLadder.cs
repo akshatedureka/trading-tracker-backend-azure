@@ -30,13 +30,12 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Blocks";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             // Read blocks from Cosmos DB
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userBlockResponse = container
                     .GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId && b.Symbol == symbol).ToList().FirstOrDefault();

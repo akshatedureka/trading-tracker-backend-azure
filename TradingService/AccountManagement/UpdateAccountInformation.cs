@@ -53,12 +53,11 @@ namespace TradingService.AccountManagement
             var settingAlpacaKeyResponse = await client.SetConfigurationSettingAsync(settingAlpacaKey);
             var settingAlpacaSecretResponse = await client.SetConfigurationSettingAsync(settingAlpacaSec);
 
-            const string databaseId = "Tracker";
             const string containerId = "Accounts";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var accountInformation = container.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 

@@ -32,14 +32,14 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Blocks";
             const string containerIdForLadders = "Ladders";
-            var container = await Repository.GetContainer(databaseId, containerId);
-            var containerForLadders = await Repository.GetContainer(databaseId, containerIdForLadders);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
+                var containerForLadders = await Repository.GetContainer(containerIdForLadders);
+
                 var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
                     .Where(u => u.UserId == userId && u.Symbol == ladder.Symbol).ToList().FirstOrDefault();
 

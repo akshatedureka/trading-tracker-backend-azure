@@ -29,13 +29,13 @@ namespace TradingService.SymbolManagement
             }
 
             // The name of the database and container
-            const string databaseId = "Tracker";
+            //const string databaseId = "Tracker";
             const string containerId = "Symbols";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             // Read symbols from Cosmos DB
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userSymbolResponse = container
                     .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
@@ -43,13 +43,13 @@ namespace TradingService.SymbolManagement
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex);
-                return new BadRequestObjectResult("Error getting symbols from DB: " + ex);
+                log.LogError("Issue getting symbols from Cosmos DB item {ex}", ex.Message);
+                return new BadRequestObjectResult("Error getting symbols from DB: " + ex.Message);
             }
             catch (Exception ex)
             {
-                log.LogError("Issue getting symbols {ex}", ex);
-                return new BadRequestObjectResult("Error getting symbols:" + ex);
+                log.LogError("Issue getting symbols {ex}", ex.Message);
+                return new BadRequestObjectResult("Error getting symbols:" + ex.Message);
             }
         }
     }

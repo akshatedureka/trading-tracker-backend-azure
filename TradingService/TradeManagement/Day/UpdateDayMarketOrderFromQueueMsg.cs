@@ -26,7 +26,6 @@ namespace TradingService.TradeManagement.Day
             _configuration = configuration;
         }
 
-        private static readonly string databaseId = "Tracker";
         private static readonly string containerBlocksDayArchiveId = "BlocksDayArchive";
         private static Container _containerBlocksDayArchive;
         private static ILogger _log;
@@ -34,7 +33,7 @@ namespace TradingService.TradeManagement.Day
         [FunctionName("UpdateDayMarketOrderFromQueueMsg")]
         public async Task Run([QueueTrigger("tradeupdatequeuedaymarket", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-            _containerBlocksDayArchive = await Repository.GetContainer(databaseId, containerBlocksDayArchiveId);
+            _containerBlocksDayArchive = await Repository.GetContainer(containerBlocksDayArchiveId);
 
             _log = log;
 

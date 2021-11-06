@@ -28,14 +28,12 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("User id has not been provided.");
             }
 
-            // The name of the database and container
-            const string databaseId = "Tracker";
             const string containerId = "Ladders";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             // Read ladders from Cosmos DB
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userLadderResponse = container
                     .GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();

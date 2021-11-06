@@ -15,7 +15,7 @@ namespace TradingService.Common.Repository
         // Connect to Cosmos DB using endpoint
         private static readonly CosmosClient CosmosClient = new CosmosClient(EndpointUri, PrimaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
 
-        public static async Task<Container> GetContainer(string databaseId, string containerId, string partitionKey = "userId")
+        public static async Task<Container> GetContainer(string containerId, string databaseId = "Tracker", string partitionKey = "userId")
         {
             var database = (Database)await CosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/" + partitionKey);

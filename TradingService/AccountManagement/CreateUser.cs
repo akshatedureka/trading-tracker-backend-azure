@@ -26,9 +26,8 @@ namespace TradingService.AccountManagement
                 return new BadRequestObjectResult("User id has not been provided.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Users";
-            var container = await Repository.GetContainer(databaseId, containerId);
+            var container = await Repository.GetContainer(containerId);
             return new OkResult();
             //var userToAdd = new Models.User
             //{

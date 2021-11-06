@@ -41,11 +41,10 @@ namespace TradingService.TradeManagement.Swing
             }
 
             // The name of the database and container we will create
-            var databaseId = "Tracker";
             var containerId = "Blocks";
 
             // Connect to Cosmos DB using endpoint
-            var container = await Repository.GetContainer(databaseId, containerId);
+            var container = await Repository.GetContainer(containerId);
 
             var existingUserSymbolBlock = new UserBlock();
 

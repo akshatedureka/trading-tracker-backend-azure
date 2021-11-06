@@ -30,16 +30,14 @@ namespace TradingService.TradeManagement.Swing
             var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
 
             // The name of the database and container we will create
-            var databaseId = "Tracker";
             const string containerIdForBlockArchive = "BlocksArchive";
-
-            var containerForBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockArchive);
 
             var blocks = new List<Block>();
 
             // Read block archives from Cosmos DB
             try
             {
+                var containerForBlockArchive = await Repository.GetContainer(containerIdForBlockArchive);
                 using var setIterator = containerForBlockArchive.GetItemLinqQueryable<Block>().ToFeedIterator();
                 while (setIterator.HasMoreResults)
                 {

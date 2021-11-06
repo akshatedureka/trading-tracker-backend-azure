@@ -25,7 +25,6 @@ namespace TradingService.TradeManagement.Swing
             _configuration = configuration;
         }
 
-        private static readonly string databaseId = "Tracker";
         private static readonly string containerId = "Blocks";
         private static readonly string containerArchiveId = "BlocksArchive";
         private static Container _container;
@@ -37,8 +36,8 @@ namespace TradingService.TradeManagement.Swing
         public async Task Run([QueueTrigger("tradeupdatequeueswinglong", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
 
-            _container = await Repository.GetContainer(databaseId, containerId);
-            _containerArchive = await Repository.GetContainer(databaseId, containerArchiveId);
+            _container = await Repository.GetContainer(containerId);
+            _containerArchive = await Repository.GetContainer(containerArchiveId);
 
             _log = log;
 

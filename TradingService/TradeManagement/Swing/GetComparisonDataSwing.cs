@@ -40,16 +40,14 @@ namespace TradingService.TradeManagement.Swing
             }
 
             // The name of the database and container we will create
-            const string databaseId = "Tracker";
             const string containerIdForBlocks = "Blocks";
-
-            var containerForBlocks = await Repository.GetContainer(databaseId, containerIdForBlocks);
 
             // ToDo: Create common DB query in Common project to use throughout functions
             // Get open user blocks
             var userBlocks = new List<UserBlock>();
             try
             {
+                var containerForBlocks = await Repository.GetContainer(containerIdForBlocks);
                 userBlocks = containerForBlocks
                     .GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId).ToList();

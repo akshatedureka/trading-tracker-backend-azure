@@ -10,12 +10,11 @@ namespace TradingService.Common.Repository
     {
         public static async Task<UserSymbol> GetUserSymbolByUserId(string userId)
         {
-            const string databaseId = "Tracker";
             const string containerId = "Symbols";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
                 return userSymbol;
@@ -29,12 +28,11 @@ namespace TradingService.Common.Repository
 
         public static async Task<Symbol> GetSymbolByUserIdAndSymbolName(string userId, string symbolName)
         {
-            const string databaseId = "Tracker";
             const string containerId = "Symbols";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 
@@ -50,12 +48,11 @@ namespace TradingService.Common.Repository
 
         public static async Task<UserBlock> GetUserBlockByUserIdAndSymbol(string userId, string symbol)
         {
-            const string databaseId = "Tracker";
             const string containerId = "Blocks";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId && s.Symbol == symbol).ToList().FirstOrDefault();
                 return userBlock;

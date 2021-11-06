@@ -37,12 +37,11 @@ namespace TradingService.TradeManagement.Day
             var userId = req.Headers["From"].FirstOrDefault();
 
             // The name of the database and container we will create
-            const string databaseId = "Tracker";
             const string containerIdForSymbols = "Symbols";
             const string containerIdForBlockDayArchive = "BlocksDayArchive";
 
-            var containerForSymbols = await Repository.GetContainer(databaseId, containerIdForSymbols);
-            var containerForDayBlockArchive = await Repository.GetContainer(databaseId, containerIdForBlockDayArchive);
+            var containerForSymbols = await Repository.GetContainer(containerIdForSymbols);
+            var containerForDayBlockArchive = await Repository.GetContainer(containerIdForBlockDayArchive);
 
             var symbols = new List<Symbol>();
 

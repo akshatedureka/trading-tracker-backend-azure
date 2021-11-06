@@ -44,11 +44,10 @@ namespace TradingService.BlockManagement
             }
 
             // Connect to Blocks container in Cosmos DB
-            const string databaseId = "Tracker";
             const string containerId = "Blocks";
             const string containerIdForLadders = "Ladders";
-            var container = await Repository.GetContainer(databaseId, containerId);
-            var containerForLadders = await Repository.GetContainer(databaseId, containerIdForLadders);
+            var container = await Repository.GetContainer(containerId);
+            var containerForLadders = await Repository.GetContainer(containerIdForLadders);
 
             // First check if this userSymbolBlock has already been created, if so, return a conflict result
             var existingUserSymbolBlocks = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)

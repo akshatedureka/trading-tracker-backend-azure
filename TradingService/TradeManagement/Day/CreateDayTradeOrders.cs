@@ -24,7 +24,6 @@ namespace TradingService.TradeManagement.Day
             _configuration = configuration;
         }
 
-        private static readonly string databaseId = "Tracker";
         private static readonly string containerSymbolsId = "Symbols";
         private static readonly string containerBlocksDayArchiveId = "BlocksDayArchive";
         private static Container _containerSymbols;
@@ -40,8 +39,8 @@ namespace TradingService.TradeManagement.Day
 
             _log.LogInformation($"Function triggered to process day trade orders for user {userId}.");
 
-            _containerSymbols = await Repository.GetContainer(databaseId, containerSymbolsId);
-            _containerBlocksDayArchive = await Repository.GetContainer(databaseId, containerBlocksDayArchiveId);
+            _containerSymbols = await Repository.GetContainer(containerSymbolsId);
+            _containerBlocksDayArchive = await Repository.GetContainer(containerBlocksDayArchiveId);
 
             // Get symbols that have day trading active
             var symbols = new List<Symbol>();

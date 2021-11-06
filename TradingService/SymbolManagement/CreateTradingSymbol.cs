@@ -32,9 +32,8 @@ namespace TradingService.SymbolManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Symbols";
-            var container = await Repository.GetContainer(databaseId, containerId);
+            var container = await Repository.GetContainer(containerId);
 
             var symbolToAdd = new Symbol
             {

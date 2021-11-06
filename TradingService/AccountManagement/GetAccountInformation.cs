@@ -28,12 +28,11 @@ namespace TradingService.AccountManagement
                 return new BadRequestObjectResult("User id has not been provided.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Accounts";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var account = container.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
                     .Where(u => u.UserId == userId).ToList().FirstOrDefault();
 

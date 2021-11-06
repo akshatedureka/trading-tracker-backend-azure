@@ -19,9 +19,8 @@ namespace TradingService.TradeManagement.Swing
             var archiveBlockMessage = JsonConvert.DeserializeObject<ArchiveBlockMessage>(myQueueItem);
             log.LogInformation($"ArchiveSwingBlockFromQueueMsg triggered for user {archiveBlockMessage.UserId}, symbol {archiveBlockMessage.Symbol}, block id {archiveBlockMessage.BlockId}.");
 
-            const string databaseId = "Tracker";
             const string containerId = "BlocksArchive";
-            var container = await Repository.GetContainer(databaseId, containerId);
+            var container = await Repository.GetContainer(containerId);
 
             var archiveBlock = new ArchiveBlock()
             {

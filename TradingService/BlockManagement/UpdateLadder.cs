@@ -30,12 +30,11 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Data body is null or empty during ladder update request.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Ladders";
-            var container = await Repository.GetContainer(databaseId, containerId);
 
             try
             {
+                var container = await Repository.GetContainer(containerId);
                 var userLadder = container.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                     .Where(l => l.UserId == userId).ToList().FirstOrDefault();
 

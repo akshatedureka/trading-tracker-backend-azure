@@ -16,7 +16,6 @@ namespace TradingService.OrderManagement
     {
         private readonly IConfiguration _configuration;
         private static Container _containerArchive;
-        private static readonly string databaseId = "Tracker";
         private static readonly string containerArchiveId = "BlocksArchive";
 
         public CloseAllOpenPositions(IConfiguration configuration)

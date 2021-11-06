@@ -31,9 +31,8 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string databaseId = "Tracker";
             const string containerId = "Ladders";
-            var container = await Repository.GetContainer(databaseId, containerId);
+            var container = await Repository.GetContainer(containerId);
 
             // Create new ladder to save
             var ladderToAdd = new Ladder()
