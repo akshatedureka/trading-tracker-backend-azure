@@ -37,7 +37,7 @@ namespace TradingService.TradeManagement.Swing
                 DateBuyOrderFilled = archiveBlockMessage.DateBuyOrderFilled,
                 DateSellOrderFilled = archiveBlockMessage.DateSellOrderFilled,
                 SellOrderFilledPrice = archiveBlockMessage.SellOrderFilledPrice,
-                IsShort = false,
+                IsShort = archiveBlockMessage.IsShort,
                 Profit = (archiveBlockMessage.SellOrderFilledPrice - archiveBlockMessage.BuyOrderFilledPrice) * archiveBlockMessage.NumShares
             };
 

@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -13,6 +11,7 @@ using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.TradeManagement.Swing.Models;
+using TradingService.TradeManagement.Swing.Common;
 
 namespace TradingService.TradeManagement.Swing
 {
@@ -26,9 +25,7 @@ namespace TradingService.TradeManagement.Swing
         }
 
         private static readonly string containerId = "Blocks";
-        private static readonly string containerArchiveId = "BlocksArchive";
         private static Container _container;
-        private static Container _containerArchive;
         private const int MaxNumShares = 50;
         private static ILogger _log;
 
@@ -37,7 +34,6 @@ namespace TradingService.TradeManagement.Swing
         {
 
             _container = await Repository.GetContainer(containerId);
-            _containerArchive = await Repository.GetContainer(containerArchiveId);
 
             _log = log;
 
@@ -150,11 +146,8 @@ namespace TradingService.TradeManagement.Swing
 
                 blockToUpdate.SellOrderFilledPrice = executedSellPrice;
 
-                // Archive block -- ToDo: Create a new queue and function to trigger to archive block
                 // Put message on a queue to be processed by a different function
-
-                await ArchiveBlock(userBlock, blockToUpdate);
-                _log.LogInformation($"Created archive record for block id {blockToUpdate.Id} at: { DateTimeOffset.Now}.");
+                await TradeManagementCommon.CreateArchiveBlockMsg(_log, _configuration, userBlock, blockToUpdate);
 
                 // Replace block with new orders
                 var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId,
@@ -213,30 +206,6 @@ namespace TradingService.TradeManagement.Swing
             _log.LogInformation($"Created long bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
 
             return orderIds;
-        }
-
-        private async Task ArchiveBlock(UserBlock userBlock, Block block)
-        {
-            var archiveBlock = new ArchiveBlock()
-            {
-                Id = Guid.NewGuid().ToString(),
-                BlockId = block.Id,
-                DateCreated = DateTime.Now,
-                UserId = userBlock.UserId,
-                Symbol = userBlock.Symbol,
-                NumShares = userBlock.NumShares,
-                ExternalBuyOrderId = block.ExternalBuyOrderId,
-                ExternalSellOrderId = block.ExternalSellOrderId,
-                ExternalStopLossOrderId = block.ExternalStopLossOrderId,
-                BuyOrderFilledPrice = block.BuyOrderFilledPrice,
-                DateBuyOrderFilled = block.DateBuyOrderFilled,
-                DateSellOrderFilled = DateTime.Now,
-                SellOrderFilledPrice = block.SellOrderFilledPrice,
-                IsShort = false,
-                Profit = (block.SellOrderFilledPrice - block.BuyOrderFilledPrice) * userBlock.NumShares
-            };
-
-            await _containerArchive.CreateItemAsync(archiveBlock, new PartitionKey(archiveBlock.UserId));
         }
     }
 }
