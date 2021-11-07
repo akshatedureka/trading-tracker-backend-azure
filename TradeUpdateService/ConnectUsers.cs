@@ -34,7 +34,7 @@ namespace TradeUpdateService
 
             // Connect to Cosmos DB using endpoint
             var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-            const string databaseId = "Tracker";
+            const string databaseId = "TMS";
             const string containerId = "Accounts";
 
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);

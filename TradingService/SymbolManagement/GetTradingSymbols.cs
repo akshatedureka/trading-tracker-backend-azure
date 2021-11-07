@@ -29,7 +29,6 @@ namespace TradingService.SymbolManagement
             }
 
             // The name of the database and container
-            //const string databaseId = "Tracker";
             const string containerId = "Symbols";
 
             // Read symbols from Cosmos DB
