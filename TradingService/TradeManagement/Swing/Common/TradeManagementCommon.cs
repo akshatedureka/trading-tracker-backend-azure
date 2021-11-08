@@ -30,9 +30,8 @@ namespace TradingService.TradeManagement.Swing.Common
                 ExternalStopLossOrderId = block.ExternalStopLossOrderId,
                 BuyOrderFilledPrice = block.BuyOrderFilledPrice,
                 DateBuyOrderFilled = block.DateBuyOrderFilled,
-                DateSellOrderFilled = DateTime.Now,
-                SellOrderFilledPrice = block.SellOrderFilledPrice,
-                IsShort = false,
+                DateSellOrderFilled = block.DateSellOrderFilled,
+                SellOrderFilledPrice = block.SellOrderFilledPrice
             };
 
             await queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));

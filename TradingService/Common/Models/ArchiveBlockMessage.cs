@@ -15,6 +15,5 @@ namespace TradingService.Common.Models
         public DateTime DateBuyOrderFilled { get; set; }
         public DateTime DateSellOrderFilled { get; set; }
         public decimal SellOrderFilledPrice { get; set; }
-        public bool IsShort { get; set; }
     }
 }
