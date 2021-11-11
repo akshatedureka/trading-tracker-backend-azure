@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Hangfire;
 using Hangfire.MemoryStorage;
+using System;
 
 namespace TradeUpdateService
 {
@@ -18,16 +19,17 @@ namespace TradeUpdateService
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
                 .UseSimpleAssemblyNameTypeSerializer()
                 .UseDefaultTypeSerializer()
-                .UseMemoryStorage());
-            services.AddHangfireServer();
+                .UseMemoryStorage(new MemoryStorageOptions { FetchNextJobTimeout = TimeSpan.FromDays(1) })); // Must set or else jobs will reprocess automatically after 30 minutes; If using db option, need to set invisibility timeout property
+            services.AddHangfireServer(); // 20 workers max for right now
             services.AddSingleton<IConnectUsers, ConnectUsers>();
-            services.AddTransient<ITradeUpdateListener, TradeUpdateListener>(); //ToDo: Singleton or transient?
-            services.AddTransient<IDayTrading, DayTrading>(); //ToDo: Singleton or transient?
+            services.AddScoped<ITradeUpdateListener, TradeUpdateListener>();
+            services.AddSingleton<IDayTrading, DayTrading>();
+            services.AddSingleton<ICreateOrders, CreateOrders>();
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IBackgroundJobClient backgroundJobClient)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -47,7 +49,8 @@ namespace TradeUpdateService
             app.UseHangfireDashboard();
 
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
-            RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), "*/5 * * * *");
+            RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), "*/5 * * * *"); // every 5 minutes
+            RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/15 * * * * *"); // every 15 seconds
         }
     }
 }
