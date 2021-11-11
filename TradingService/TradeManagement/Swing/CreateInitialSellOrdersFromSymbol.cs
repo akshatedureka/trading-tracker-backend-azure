@@ -72,7 +72,7 @@ namespace TradingService.TradeManagement.Swing
             }
             catch (Exception ex)
             {
-                log.LogError("$Error creating initial sell orders: {ex.Message}.");
+                log.LogError($"Error creating initial sell orders: {ex.Message}.");
                 return new BadRequestObjectResult($"Error creating initial sell orders: {ex.Message}.");
             }
 
@@ -95,10 +95,9 @@ namespace TradingService.TradeManagement.Swing
             {
                 var block = blocksBelow[x];
                 var stopPrice = block.SellOrderPrice + (decimal) 0.05;
-                var stopLossPrice = block.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
 
-                var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, stopLossPrice);
-                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {stopLossPrice}");
+                var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
+                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}");
 
                 //ToDo: Refactor to combine with blocks below
                 // Update Cosmos DB item
@@ -119,10 +118,9 @@ namespace TradingService.TradeManagement.Swing
             for (var x = 0; x < countAboveAndBelow; x++)
             {
                 var block = blocksAbove[x];
-                var stopLossPrice = block.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
 
-                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.SellOrderPrice, block.BuyOrderPrice, stopLossPrice);
-                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {stopLossPrice}");
+                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
+                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}");
 
                 var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 

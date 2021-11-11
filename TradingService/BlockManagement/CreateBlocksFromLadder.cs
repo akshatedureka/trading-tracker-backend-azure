@@ -15,6 +15,8 @@ using TradingService.BlockManagement.Models;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
+using TradingService.AccountManagement.Models;
+using TradingService.AccountManagement.Enums;
 
 namespace TradingService.BlockManagement
 {
@@ -46,8 +48,14 @@ namespace TradingService.BlockManagement
             // Connect to Blocks container in Cosmos DB
             const string containerId = "Blocks";
             const string containerIdForLadders = "Ladders";
+            const string containerIdForAccounts = "Accounts";
             var container = await Repository.GetContainer(containerId);
             var containerForLadders = await Repository.GetContainer(containerIdForLadders);
+            var containerForAccounts = await Repository.GetContainer(containerIdForAccounts);
+
+            // Get account type
+            var accountType = containerForAccounts.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
+            .Where(u => u.UserId == userId).ToList().FirstOrDefault().AccountType;
 
             // First check if this userSymbolBlock has already been created, if so, return a conflict result
             var existingUserSymbolBlocks = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
@@ -74,7 +82,7 @@ namespace TradingService.BlockManagement
             var initialConfidenceLevel = 1;
 
             // Create blocks (order by buy price ascending)
-            var blockPrices = GenerateBlockPrices(currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage, ladderData.StopLossPercentage).OrderBy(p => p.BuyPrice);
+            var blockPrices = GenerateBlockPrices(accountType, currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage, ladderData.StopLossPercentage).OrderBy(p => p.BuyPrice);
             var blocks = new List<Block>();
 
             // Create a list of blocks to save based on the block prices
@@ -145,7 +153,7 @@ namespace TradingService.BlockManagement
             }
         }
 
-        private List<BlockPrices> GenerateBlockPrices(decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
+        private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
             const int numBlocks = 200;
@@ -156,6 +164,12 @@ namespace TradingService.BlockManagement
                 var buyPrice = currentPrice + (i * (buyPercentage / 100) * currentPrice);
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
                 var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
+
+                if (accountType == AccountTypes.SwingShort)
+                {
+                    stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
+                }
+
                 var blockItemUp = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
                 blockPrices.Add(blockItemUp);
             }
@@ -166,6 +180,12 @@ namespace TradingService.BlockManagement
                 var buyPrice = currentPrice - (i * (buyPercentage / 100) * currentPrice);
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
                 var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
+
+                if (accountType == AccountTypes.SwingShort)
+                {
+                    stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
+                }
+
                 var blockItemDown = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
                 blockPrices.Add(blockItemDown);
             }

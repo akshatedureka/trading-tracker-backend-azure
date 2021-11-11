@@ -69,7 +69,7 @@ namespace TradingService.TradeManagement.Swing
                 log.LogError($"Error creating initial buy orders: {ex.Message}.");
             }
 
-            log.LogError($"Successfully created buy orders for user {userId} symbol {symbol}.");
+            log.LogInformation($"Successfully created buy orders for user {userId} symbol {symbol}.");
         }
 
         private async Task CreateBracketOrdersBasedOnCurrentPrice(UserBlock userBlock, Container container, ILogger log)

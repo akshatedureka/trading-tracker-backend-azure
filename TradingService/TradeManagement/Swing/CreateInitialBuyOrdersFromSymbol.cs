@@ -29,7 +29,7 @@ namespace TradingService.TradeManagement.Swing
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            log.LogInformation("Creating initial buy order from symbol.");
 
             // Get symbol name
             string symbol = req.Query["symbol"];
