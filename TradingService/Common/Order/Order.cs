@@ -241,7 +241,7 @@ namespace TradingService.Common.Order
                     DateBuyOrderFilled = DateTime.Now,
                     DateSellOrderFilled = DateTime.Now,
                     SellOrderFilledPrice = positionData.AssetCurrentPrice,
-                    Profit = (positionData.AssetCurrentPrice - positionData.AverageEntryPrice) * result.IntegerQuantity
+                    Profit = positionData.UnrealizedProfitLoss
                 };
 
                 return archiveBlock;
