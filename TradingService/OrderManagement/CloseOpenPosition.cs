@@ -42,10 +42,10 @@ namespace TradingService.OrderManagement
             try
             {
                 var archiveBlock = await Order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
-                if (archiveBlock is null)
+                if (archiveBlock is null) // ToDo: split closing orders and positions. There may not be any open positions. Handle this error so that other real errors get caught and returned to the user.
                 {
                     Console.WriteLine("Error closing open positions");
-                    return new BadRequestObjectResult("There are no open positions.");
+                    return new OkObjectResult("There are no open positions to close.");
                 }
 
                 // ToDo: Move archive block to common module
@@ -57,7 +57,7 @@ namespace TradingService.OrderManagement
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine(ex.Message);
                 return new BadRequestObjectResult(ex.Message);
             }
             
