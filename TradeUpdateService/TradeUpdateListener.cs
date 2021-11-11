@@ -69,6 +69,8 @@ namespace TradeUpdateService
 
             while (true)
             {
+                await Task.Delay(100);
+
                 if (!_connectionError) continue;
 
                 // Attempt Reconnect
