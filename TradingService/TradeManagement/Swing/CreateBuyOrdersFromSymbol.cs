@@ -106,7 +106,7 @@ namespace TradingService.TradeManagement.Swing
 
                 // Replace the item with the updated content
                 var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders.");
+                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders.");
             }
 
             // Two blocks below
@@ -129,7 +129,7 @@ namespace TradingService.TradeManagement.Swing
 
                 // Replace the item with the updated content
                 var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders");
+                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders");
             }
         }
 

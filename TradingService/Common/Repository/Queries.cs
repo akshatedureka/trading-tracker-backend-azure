@@ -124,43 +124,61 @@ namespace TradingService.Common.Repository
             }
         }
 
-        public static async Task<List<ClosedBlock>> CreateCondensedBlocksByClosedBlocks(List<ClosedBlock> closedBlocks)
+        public static async Task<bool> CreateCondensedBlockByUserIdAndSymbol(string userId, string symbol, decimal profit)
         {
             try
             {
                 var container = await Repository.GetContainer(containerIdBlocksCondensed);
-                foreach (var closedBlock in closedBlocks)
+                var userCondensedBlock = container.GetItemLinqQueryable<UserCondensedBlock>(allowSynchronousQueryExecution: true)
+                .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+
+                if (userCondensedBlock == null) // Initial UserCondensedBlock item creation
                 {
-                    await container.CreateItemAsync(closedBlock, new PartitionKey(closedBlock.UserId));
+                    var condensedBlock = new CondensedBlock { Id = Guid.NewGuid().ToString(), DateUpdated = DateTime.Now, Symbol = symbol, Profit = profit };
+                    var userCondensedBlockToCreate = new UserCondensedBlock()
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        DateCreated = DateTime.Now,
+                        UserId = userId,
+                        CondensedBlocks = new List<CondensedBlock> { condensedBlock }
+                    };
+                    var userCondensedBlockResponse = await container.CreateItemAsync(userCondensedBlockToCreate, new PartitionKey(userCondensedBlockToCreate.UserId));
+                    return true;
                 }
-                return closedBlocks;
+
+                var condensedBlockToUpdate = userCondensedBlock.CondensedBlocks.FirstOrDefault(l => l.Symbol == symbol);
+                condensedBlockToUpdate.DateUpdated = DateTime.Now;
+                condensedBlockToUpdate.Profit += profit;
+                var updateUserCondensedBlock = await container.ReplaceItemAsync(userCondensedBlock, userCondensedBlock.Id, new PartitionKey(userCondensedBlock.UserId));
+
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Issue creating condensed blocks in Cosmos DB: {ex.Message}.");
-                return null;
+                Console.WriteLine($"Issue creating condensed block in Cosmos DB: {ex.Message}.");
+                return false;
             }
         }
 
-        public static async Task<List<ClosedBlock>> DeleteClosedBlocksByClosedBlocks(List<ClosedBlock> closedBlocks)
+        public static async Task<bool> DeleteClosedBlocksByClosedBlocks(List<ClosedBlock> closedBlocks)
         {
             try
             {
-                var container = await Repository.GetContainer(containerIdForAccounts);
+                var container = await Repository.GetContainer(containerIdBlocksClosed);
                 foreach (var closedBlock in closedBlocks)
                 {
                     await container.DeleteItemAsync<ClosedBlock>(closedBlock.Id, new PartitionKey(closedBlock.UserId));
                 }
-                return closedBlocks;
+                return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Issue deleting closed blocks from Cosmos DB: {ex.Message}.");
-                return null;
+                return false;
             }
         }
 
-        public static async Task<UserBlock> ResetUserBlockByUserIdAndSymbol(string userId, string symbol)
+        public static async Task<bool> ResetUserBlockByUserIdAndSymbol(string userId, string symbol)
         {
             try
             {
@@ -183,12 +201,14 @@ namespace TradingService.Common.Repository
                     block.DateSellOrderFilled = DateTime.MinValue;
                 }
 
-                return userBlock;
+                var updateUserBlock = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+
+                return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Issue resetting user block in Cosmos DB: {ex.Message}.");
-                return null;
+                return false;
             }
         }
 
