@@ -46,10 +46,6 @@ namespace TradingService.TradeManagement.Swing
                 // Get closed blocks
                 var closedBlocks = await Queries.GetClosedBlocksByUserIdAndSymbol(userId, symbol);
 
-                //TESTING ONLY ******
-                closedBlock = new TradingService.Common.Models.ClosedBlock { Profit = 5 };
-
-
                 // Move closed blocks to one condensed block
                 var profit = closedBlock.Profit;
                 foreach (var block in closedBlocks)
