@@ -80,36 +80,8 @@ namespace TradingService.TradeManagement.Swing
                 return;
             }
 
-            var currentBlockId = Convert.ToInt64(blockToUpdate.Id);
-            var blockAbove = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId + 1).ToString());
-            var blockBelow = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId - 1).ToString());
-
-            // Check if sell order above current block has been created, if not, create it
-            var orderIdsAbove = await CreateSellOrderAboveIfNotCreated(blockAbove, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
-
-            if (orderIdsAbove != null)
-            {
-                // Update block with new orderIds in DB
-                blockAbove.ExternalBuyOrderId = orderIdsAbove.TakeProfitId;
-                blockAbove.ExternalSellOrderId = orderIdsAbove.ParentOrderId;
-                blockAbove.ExternalStopLossOrderId = orderIdsAbove.StopLossOrderId;
-                blockAbove.SellOrderCreated = true;
-            }
-
-            // Check if sell order below current block has been created, if not, create it
-            var orderIdsBelow = await CreateSellOrderBelowIfNotCreated(blockBelow, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
-
-            if (orderIdsBelow != null)
-            {
-                // Update block with new orderIds in DB
-                blockBelow.ExternalBuyOrderId = orderIdsBelow.TakeProfitId;
-                blockBelow.ExternalSellOrderId = orderIdsBelow.ParentOrderId;
-                blockBelow.ExternalStopLossOrderId = orderIdsBelow.StopLossOrderId;
-                blockBelow.SellOrderCreated = true;
-            }
-
             var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-            _log.LogInformation($"Saved block id {currentBlockId} to DB with sell order created flag to true at: {DateTimeOffset.Now}.");
+            _log.LogInformation($"Saved block id {blockToUpdate.Id} to DB with sell order created flag to true at: {DateTimeOffset.Now}.");
 
         }
 

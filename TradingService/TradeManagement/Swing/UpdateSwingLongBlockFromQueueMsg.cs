@@ -79,37 +79,8 @@ namespace TradingService.TradeManagement.Swing
                 return;
             }
 
-            var currentBlockId = Convert.ToInt64(blockToUpdate.Id);
-            var blockAbove = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId + 1).ToString());
-            var blockBelow = userBlock.Blocks.FirstOrDefault(b => b.Id == (currentBlockId - 1).ToString());
-
-            // Check if buy order above current block has been created, if not, create it
-            var orderIdsAbove = await CreateBuyOrderAboveIfNotCreated(blockAbove, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
-
-            if (orderIdsAbove != null)
-            {
-                // Update block with new orderIds in DB
-                blockAbove.ExternalBuyOrderId = orderIdsAbove.ParentOrderId;
-                blockAbove.ExternalSellOrderId = orderIdsAbove.TakeProfitId;
-                blockAbove.ExternalStopLossOrderId = orderIdsAbove.StopLossOrderId;
-                blockAbove.BuyOrderCreated = true;
-            }
-
-            // ToDo: Refactor to separate function 
-            // Check if buy order below current block has been created, if not, create it
-            var orderIdsBelow = await CreateBuyOrderBelowIfNotCreated(blockBelow, userBlock.UserId, userBlock.Symbol, userBlock.NumShares);
-
-            if (orderIdsBelow != null)
-            {
-                // Update block with new orderIds in DB
-                blockBelow.ExternalBuyOrderId = orderIdsBelow.ParentOrderId;
-                blockBelow.ExternalSellOrderId = orderIdsBelow.TakeProfitId;
-                blockBelow.ExternalStopLossOrderId = orderIdsBelow.StopLossOrderId;
-                blockBelow.BuyOrderCreated = true;
-            }
-
             var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-            _log.LogInformation($"Saved block id {currentBlockId} to DB with sell order created flag to true at: {DateTimeOffset.Now}.");
+            _log.LogInformation($"Saved block id {blockToUpdate.Id} to DB with sell order created flag to true at: {DateTimeOffset.Now}.");
 
         }
 
