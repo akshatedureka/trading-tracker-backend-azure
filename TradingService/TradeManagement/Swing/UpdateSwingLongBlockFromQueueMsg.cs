@@ -7,7 +7,6 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.TradeManagement.Swing.Models;
@@ -151,32 +150,6 @@ namespace TradingService.TradeManagement.Swing
             {
                 _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
             }
-        }
-
-        private async Task<BracketOrderIds> CreateBuyOrderAboveIfNotCreated(Block block, string userId, string symbol, long numShares)
-        {
-            var stopPrice = block.BuyOrderPrice - (decimal)0.05;
-
-            // If no buy order has been created, create one
-            if (block.BuyOrderCreated) return null;
-
-            // Create new buy order
-            var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, numShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-            _log.LogInformation($"Created long bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
-
-            return orderIds;
-        }
-
-        private async Task<BracketOrderIds> CreateBuyOrderBelowIfNotCreated(Block block, string userId, string symbol, long numShares)
-        {
-            // If no buy order has been created, create one
-            if (block.BuyOrderCreated) return null;
-
-            // Create new buy order
-            var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, numShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-            _log.LogInformation($"Created long bracket order for symbol {symbol} for limit price {block.BuyOrderPrice}.");
-
-            return orderIds;
         }
     }
 }

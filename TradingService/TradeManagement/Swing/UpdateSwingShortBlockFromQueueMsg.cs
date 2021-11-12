@@ -7,7 +7,6 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.TradeManagement.Swing.Common;
@@ -151,35 +150,6 @@ namespace TradingService.TradeManagement.Swing
             {
                 _log.LogError($"Could not find block for buy for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
             }
-        }
-
-        private async Task<BracketOrderIds> CreateSellOrderAboveIfNotCreated(Block block, string userId, string symbol, long numShares)
-        {
-            var stopLossPrice = block.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
-
-            // If no sell order has been created, create one
-            if (block.SellOrderCreated) return null;
-
-            // Create new sell order
-            var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userId, symbol, numShares, block.SellOrderPrice, block.BuyOrderPrice, stopLossPrice);
-            _log.LogInformation($"A new bracket limit order has been placed for block id {block.Id}. The external sell order id is {orderIds.ParentOrderId}.");
-
-            return orderIds;
-        }
-
-        private async Task<BracketOrderIds> CreateSellOrderBelowIfNotCreated(Block block, string userId, string symbol, long numShares)
-        {
-            // If no sell order has been created, create one
-            if (block.SellOrderCreated) return null;
-
-            var stopPrice = block.SellOrderPrice + (decimal)0.05;
-            var stopLossPrice = block.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
-
-            // Create new sell order
-            var orderIds = await Order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userId, symbol, numShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, stopLossPrice);
-            _log.LogInformation($"A new bracket stop limit order has been placed for block id {block.Id}. The external sell order id is {orderIds.ParentOrderId}.");
-
-            return orderIds;
         }
     }
 }
