@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
 using Microsoft.Extensions.Configuration;
+using TradingService.AccountManagement.Enums;
 using TradingService.Common.Models;
+using TradingService.Common.Repository;
 
 namespace TradingService.Common.Order
 {
@@ -198,6 +200,7 @@ namespace TradingService.Common.Order
         public static async Task<ArchiveBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
+            var accountType = await Queries.GetAccountTypeByUserId(userId);
 
             try
             {
@@ -237,11 +240,11 @@ namespace TradingService.Common.Order
                     ExternalBuyOrderId = new Guid(),
                     ExternalSellOrderId = result.OrderId,
                     ExternalStopLossOrderId = new Guid(),
-                    BuyOrderFilledPrice = positionData.AverageEntryPrice,
+                    BuyOrderFilledPrice = accountType == AccountTypes.SwingLong ? positionData.AverageEntryPrice : positionData.AssetCurrentPrice,
                     DateBuyOrderFilled = DateTime.Now,
                     DateSellOrderFilled = DateTime.Now,
-                    SellOrderFilledPrice = positionData.AssetCurrentPrice,
-                    Profit = positionData.UnrealizedProfitLoss
+                    SellOrderFilledPrice = accountType == AccountTypes.SwingLong ? positionData.AssetCurrentPrice : positionData.AverageEntryPrice,
+                    Profit = positionData.UnrealizedProfitLoss // Actual profit / loss
                 };
 
                 return archiveBlock;

@@ -32,11 +32,10 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            const string containerId = "Blocks";
-            const string containerIdForLadders = "Ladders";
-
             try
             {
+                const string containerId = "Blocks";
+                const string containerIdForLadders = "Ladders";
                 var container = await Repository.GetContainer(containerId);
                 var containerForLadders = await Repository.GetContainer(containerIdForLadders);
 
@@ -45,10 +44,9 @@ namespace TradingService.BlockManagement
 
                 if (userBlock == null) return new NotFoundObjectResult($"No blocks were found for symbol {ladder.Symbol}.");
 
-                //ToDo: change partition key to userId - should only delete user block with specific id, not all with userId
                 var deleteUserBlockResponse = await container.DeleteItemAsync<UserBlock>(userBlock.Id, new PartitionKey(userBlock.UserId));
 
-                // Update ladder to indicate blocks have been created
+                // Update ladder to indicate blocks have been deleted
                 var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                     .Where(l => l.UserId == userId).ToList().FirstOrDefault();
 

@@ -54,8 +54,7 @@ namespace TradingService.BlockManagement
             var containerForAccounts = await Repository.GetContainer(containerIdForAccounts);
 
             // Get account type
-            var accountType = containerForAccounts.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
-            .Where(u => u.UserId == userId).ToList().FirstOrDefault().AccountType;
+            var accountType = await Queries.GetAccountTypeByUserId(userId);
 
             // First check if this userSymbolBlock has already been created, if so, return a conflict result
             var existingUserSymbolBlocks = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)

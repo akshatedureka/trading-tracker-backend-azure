@@ -48,7 +48,7 @@ namespace TradingService.SymbolManagement
 
             try
             {
-                var userSymbol = Queries.GetUserSymbolByUserId(userId).Result;
+                var userSymbol = await Queries.GetUserSymbolByUserId(userId);
 
                 if (userSymbol == null) // Initial UserSymbol item creation
                 {

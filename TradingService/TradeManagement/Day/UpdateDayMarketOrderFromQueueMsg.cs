@@ -42,7 +42,7 @@ namespace TradingService.TradeManagement.Day
             var symbolName = orderUpdateMessage.Symbol;
 
             // Get symbol from DB to get take profit and stop loss prices
-            var symbol = Queries.GetSymbolByUserIdAndSymbolName(userId, symbolName).Result;
+            var symbol = await Queries.GetSymbolByUserIdAndSymbolName(userId, symbolName);
 
             if (orderUpdateMessage.OrderSide == OrderSide.Buy)
             {
