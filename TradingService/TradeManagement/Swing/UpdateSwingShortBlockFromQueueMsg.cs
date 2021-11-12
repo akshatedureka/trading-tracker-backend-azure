@@ -52,7 +52,7 @@ namespace TradingService.TradeManagement.Swing
 
         private async Task UpdateSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice)
         {
-            // Sell order has been executed, create new buy order in Alpaca, archive and reset block
+            // Sell order has been executed, create new buy order in Alpaca, close and reset block
             _log.LogInformation($"Sell order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
                        
             // Get swing trade block
@@ -119,7 +119,7 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.BuyOrderFilledPrice = executedBuyPrice;
 
                 // Put message on a queue to be processed by a different function
-                await TradeManagementCommon.CreateArchiveBlockMsg( _log, _configuration, userBlock, blockToUpdate);
+                await TradeManagementCommon.CreateClosedBlockMsg( _log, _configuration, userBlock, blockToUpdate);
 
                 // Replace block with new order
                 var stopLossPrice = blockToUpdate.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down

@@ -15,8 +15,6 @@ namespace TradingService.OrderManagement
     public class CloseAllOpenPositions
     {
         private readonly IConfiguration _configuration;
-        private static Container _containerArchive;
-        private static readonly string containerArchiveId = "BlocksArchive";
 
         public CloseAllOpenPositions(IConfiguration configuration)
         {
@@ -33,7 +31,7 @@ namespace TradingService.OrderManagement
 
             dynamic result = await Order.CloseOpenPositionsAndCancelExistingOrders(_configuration, userId);
 
-            //ToDo: Create entry in block archive table for each symbol
+            //ToDo: Create entry in blocksClosed table for each symbol
 
             return new OkObjectResult(JsonConvert.SerializeObject(result));
         }

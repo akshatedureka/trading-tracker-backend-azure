@@ -2,7 +2,7 @@
 
 namespace TradingService.Common.Models
 {
-    public class ArchiveBlockMessage
+    public class ClosedBlockMessage
     {
         public string BlockId { get; set; }
         public string UserId { get; set; }

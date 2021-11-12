@@ -16,8 +16,8 @@ namespace TradingService.TradeManagement.Swing.Transfer
         public decimal CurrentQuantity { get; set; }
         [JsonProperty(PropertyName = "currentProfit")]
         public decimal CurrentProfit { get; set; }
-        [JsonProperty(PropertyName = "archiveProfit")]
-        public decimal ArchiveProfit { get; set; }
+        [JsonProperty(PropertyName = "closedProfit")]
+        public decimal ClosedProfit { get; set; }
         [JsonProperty(PropertyName = "totalProfit")]
         public decimal TotalProfit { get; set; }
     }

@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace TradingService.Common.Models
 {
-    public class ArchiveBlock
+    public class ClosedBlock
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }

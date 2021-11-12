@@ -16,8 +16,8 @@ namespace TradingService.Common.Repository
         private static readonly string containerIdSymbols = "Symbols";
         private static readonly string containerIdBlocks = "Blocks";
         private static readonly string containerIdLadders = "Ladders";
-        private static readonly string containerIdBlocksArchive = "BlocksArchive";
-        private static readonly string containerIdBlocksLTArchive = "BlocksLTArchive"; // long-term archive
+        private static readonly string containerIdBlocksClosed = "BlocksClosed";
+        private static readonly string containerIdBlocksCondensed = "BlocksCondensed"; // long-term archive
 
         public static async Task<UserSymbol> GetUserSymbolByUserId(string userId)
         {
@@ -108,54 +108,54 @@ namespace TradingService.Common.Repository
             }
         }
 
-        public static async Task<List<ArchiveBlock>> GetArchiveBlocksByUserIdAndSymbol(string userId, string symbol)
+        public static async Task<List<ClosedBlock>> GetClosedBlocksByUserIdAndSymbol(string userId, string symbol)
         {
             try
             {
-                var container = await Repository.GetContainer(containerIdBlocksArchive);
-                var archiveBlocks = container.GetItemLinqQueryable<ArchiveBlock>(allowSynchronousQueryExecution: true)
+                var container = await Repository.GetContainer(containerIdBlocksClosed);
+                var closedBlocks = container.GetItemLinqQueryable<ClosedBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId && b.Symbol == symbol).ToList();
-                return archiveBlocks;
+                return closedBlocks;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Issue getting archives blocks from Cosmos DB: {ex.Message}.");
+                Console.WriteLine($"Issue getting closed blocks from Cosmos DB: {ex.Message}.");
                 return null;
             }
         }
 
-        public static async Task<List<ArchiveBlock>> CreateLongTermArchiveBlocksByArchiveBlocks(List<ArchiveBlock> archiveBlocks)
+        public static async Task<List<ClosedBlock>> CreateCondensedBlocksByClosedBlocks(List<ClosedBlock> closedBlocks)
         {
             try
             {
-                var container = await Repository.GetContainer(containerIdBlocksLTArchive);
-                foreach (var archiveBlock in archiveBlocks)
+                var container = await Repository.GetContainer(containerIdBlocksCondensed);
+                foreach (var closedBlock in closedBlocks)
                 {
-                    await container.CreateItemAsync(archiveBlock, new PartitionKey(archiveBlock.UserId));
+                    await container.CreateItemAsync(closedBlock, new PartitionKey(closedBlock.UserId));
                 }
-                return archiveBlocks;
+                return closedBlocks;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Issue creating long-term archive blocks in Cosmos DB: {ex.Message}.");
+                Console.WriteLine($"Issue creating condensed blocks in Cosmos DB: {ex.Message}.");
                 return null;
             }
         }
 
-        public static async Task<List<ArchiveBlock>> DeleteBlockArchivesByArchiveBlocks(List<ArchiveBlock> archiveBlocks)
+        public static async Task<List<ClosedBlock>> DeleteClosedBlocksByClosedBlocks(List<ClosedBlock> closedBlocks)
         {
             try
             {
-                var container = await Repository.GetContainer(containerIdBlocksArchive);
-                foreach (var archiveBlock in archiveBlocks)
+                var container = await Repository.GetContainer(containerIdForAccounts);
+                foreach (var closedBlock in closedBlocks)
                 {
-                    await container.DeleteItemAsync<ArchiveBlock>(archiveBlock.Id, new PartitionKey(archiveBlock.UserId));
+                    await container.DeleteItemAsync<ClosedBlock>(closedBlock.Id, new PartitionKey(closedBlock.UserId));
                 }
-                return archiveBlocks;
+                return closedBlocks;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Issue deleting block archives from Cosmos DB: {ex.Message}.");
+                Console.WriteLine($"Issue deleting closed blocks from Cosmos DB: {ex.Message}.");
                 return null;
             }
         }

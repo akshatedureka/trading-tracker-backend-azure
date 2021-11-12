@@ -187,7 +187,7 @@ namespace TradingService.Common.Order
                 var positionStatus = result.ToList();
                 //positionStatus[0].Symbol;
                 //positionStatus[0].IsSuccess;
-                // ToDo: Return list of blocks to archive
+                // ToDo: Return list of blocks to close
                 return positionStatus;
             }
             catch (Exception e)
@@ -197,7 +197,7 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<ArchiveBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
+        public static async Task<ClosedBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var accountType = await Queries.GetAccountTypeByUserId(userId);
@@ -229,8 +229,8 @@ namespace TradingService.Common.Order
                 var positionData = await alpacaTradingClient.GetPositionAsync(symbol);
                 var result = await alpacaTradingClient.DeletePositionAsync(new DeletePositionRequest(symbol));
 
-                // Return a block to be archived (assume it sells since it is a market order - could create a new block for the order and wait for it to sell if it becomes an issue)
-                var archiveBlock = new ArchiveBlock()
+                // Return a block to be closed (assume it sells since it is a market order - could create a new block for the order and wait for it to sell if it becomes an issue)
+                var closedBlock = new ClosedBlock()
                 {
                     Id = Guid.NewGuid().ToString(),
                     DateCreated = DateTime.Now,
@@ -247,7 +247,7 @@ namespace TradingService.Common.Order
                     Profit = positionData.UnrealizedProfitLoss // Actual profit / loss
                 };
 
-                return archiveBlock;
+                return closedBlock;
             }
             catch (Exception e)
             {

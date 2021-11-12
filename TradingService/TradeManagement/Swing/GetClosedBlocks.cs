@@ -14,31 +14,24 @@ using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement.Swing
 {
-    public static class GetBlockArchives
+    public static class GetClosedBlocks
     {
-        [FunctionName("GetBlockArchives")]
+        [FunctionName("GetClosedBlocks")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request to get block archives.");
-
-            // The Azure Cosmos DB endpoint for running this sample.
-            var endpointUri = Environment.GetEnvironmentVariable("EndPointUri"); // ToDo: Centralize config values to common project?
-
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
+            log.LogInformation("C# HTTP trigger function processed a request to get closed blocks.");
 
             // The name of the database and container we will create
-            const string containerIdForBlockArchive = "BlocksArchive";
+            const string containerId = "BlocksClosed";
+            var blocks = new List<ClosedBlock>();
 
-            var blocks = new List<Block>();
-
-            // Read block archives from Cosmos DB
+            // Read closed blocks from Cosmos DB
             try
             {
-                var containerForBlockArchive = await Repository.GetContainer(containerIdForBlockArchive);
-                using var setIterator = containerForBlockArchive.GetItemLinqQueryable<Block>().ToFeedIterator();
+                var container = await Repository.GetContainer(containerId);
+                using var setIterator = container.GetItemLinqQueryable<ClosedBlock>().ToFeedIterator();
                 while (setIterator.HasMoreResults)
                 {
                     blocks.AddRange(await setIterator.ReadNextAsync());
@@ -46,7 +39,7 @@ namespace TradingService.TradeManagement.Swing
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue getting block archives from Cosmos DB item {ex}", ex);
+                log.LogError($"Issue getting closed blocks from Cosmos DB item {ex.Message}.");
             }
 
             return new OkObjectResult(JsonConvert.SerializeObject(blocks));

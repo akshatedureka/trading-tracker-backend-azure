@@ -11,15 +11,15 @@ namespace TradingService.TradeManagement.Swing.Common
 {
     public class TradeManagementCommon
     {
-        public static async Task CreateArchiveBlockMsg(ILogger log, IConfiguration config, UserBlock userBlock, Block block)
+        public static async Task CreateClosedBlockMsg(ILogger log, IConfiguration config, UserBlock userBlock, Block block)
         {
-            // Place an archive block msg on the queue
+            // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
-            var queueName = "archiveswingblockqueue";
+            var queueName = "closeswingblockqueue";
             var queueClient = new QueueClient(connectionString, queueName);
             queueClient.CreateIfNotExists();
 
-            var msg = new ArchiveBlockMessage()
+            var msg = new ClosedBlockMessage()
             {
                 BlockId = block.Id,
                 UserId = userBlock.UserId,
@@ -35,7 +35,7 @@ namespace TradingService.TradeManagement.Swing.Common
             };
 
             await queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));
-            log.LogInformation($"Created archive block queue msg for user {userBlock.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
+            log.LogInformation($"Created closed block queue msg for user {userBlock.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
         }
 
         private static string Base64Encode(string plainText)

@@ -37,10 +37,10 @@ namespace TradingService.TradeManagement.Swing
 
             // The name of the database and container we will create
             const string containerIdForSymbols = "Symbols";
-            const string containerIdForBlockArchive = "BlocksArchive";
+            const string containerIdForClosedBlocks = "BlocksClosed";
 
             var containerForSymbols = await Repository.GetContainer(containerIdForSymbols);
-            var containerForBlockArchive = await Repository.GetContainer(containerIdForBlockArchive);
+            var containerForBlocksClosed = await Repository.GetContainer(containerIdForClosedBlocks);
 
             // Get symbol data
             var symbols = new List<Symbol>();
@@ -74,33 +74,33 @@ namespace TradingService.TradeManagement.Swing
             // Add symbol data to return object
             var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
 
-            // Get archive block data
-            var archiveBlocks = new List<ArchiveBlock>();
+            // Get closed block data
+            var closedBlocks = new List<ClosedBlock>();
 
-            // Read archive blocks from Cosmos DB
+            // Read closed blocks from Cosmos DB
             try
             {
-                archiveBlocks = containerForBlockArchive
-                    .GetItemLinqQueryable<ArchiveBlock>(allowSynchronousQueryExecution: true)
+                closedBlocks = containerForBlocksClosed
+                    .GetItemLinqQueryable<ClosedBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId).ToList();
             }
             catch (CosmosException ex)
             {
-                log.LogError("Issue getting archive blocks from Cosmos DB item {ex}", ex);
-                return new BadRequestObjectResult("Error getting archive blocks from DB: " + ex);
+                log.LogError($"Issue getting closed blocks from Cosmos DB item {ex.Message}.");
+                return new BadRequestObjectResult("Error getting closed blocks from DB: " + ex.Message);
             }
             catch (Exception ex)
             {
-                log.LogError("Issue getting archive blocks {ex}", ex);
-                return new BadRequestObjectResult("Error getting archive blocks:" + ex);
+                log.LogError($"Issue getting closed blocks {ex.Message}.");
+                return new BadRequestObjectResult("Error getting closed blocks:" + ex.Message);
             }
 
             // Calculate profit for blocks
-            foreach (var archiveBlock in archiveBlocks)
+            foreach (var closedBlock in closedBlocks)
             {
-                foreach (var tradeData in tradingData.Where(tradeData => archiveBlock.Symbol == tradeData.Symbol))
+                foreach (var tradeData in tradingData.Where(tradeData => closedBlock.Symbol == tradeData.Symbol))
                 {
-                    tradeData.ArchiveProfit += archiveBlock.Profit;
+                    tradeData.ClosedProfit += closedBlock.Profit;
                 }
             }
 
@@ -119,7 +119,7 @@ namespace TradingService.TradeManagement.Swing
             // Calculate total profit
             foreach (var tradeData in tradingData)
             {
-                tradeData.TotalProfit = tradeData.CurrentProfit + tradeData.ArchiveProfit;
+                tradeData.TotalProfit = tradeData.CurrentProfit + tradeData.ClosedProfit;
             }
 
             return new OkObjectResult(JsonConvert.SerializeObject(tradingData));

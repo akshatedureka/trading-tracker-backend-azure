@@ -3,13 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
-using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 
@@ -18,8 +16,6 @@ namespace TradingService.OrderManagement
     public class CloseOpenPosition
     {
         private readonly IConfiguration _configuration;
-        private static Container _containerArchive;
-        private static readonly string containerArchiveId = "BlocksArchive";
 
         public CloseOpenPosition(IConfiguration configuration)
         {
@@ -32,8 +28,9 @@ namespace TradingService.OrderManagement
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to close open positions for symbol.");
-            
-            _containerArchive = await Repository.GetContainer(containerArchiveId);
+
+            const string containerId = "BlocksClosed";
+            var container = await Repository.GetContainer(containerId);
 
             // Get symbol name
             string symbol = req.Query["symbol"];
@@ -41,17 +38,17 @@ namespace TradingService.OrderManagement
 
             try
             {
-                var archiveBlock = await Order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
-                if (archiveBlock is null) // ToDo: split closing orders and positions. There may not be any open positions. Handle this error so that other real errors get caught and returned to the user.
+                var closedBlock = await Order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
+                if (closedBlock is null) // ToDo: split closing orders and positions. There may not be any open positions. Handle this error so that other real errors get caught and returned to the user.
                 {
                     Console.WriteLine("Error closing open positions");
                     return new OkObjectResult("There are no open positions to close.");
                 }
 
-                // ToDo: Move archive block to common module
-                await _containerArchive.CreateItemAsync(archiveBlock, new PartitionKey(archiveBlock.UserId));
+                // ToDo: Move closed block to common module
+                await container.CreateItemAsync(closedBlock, new PartitionKey(closedBlock.UserId));
 
-                log.LogInformation("Created archive record for block id {archiveBlock.Id} at: {time}", archiveBlock.Id, DateTimeOffset.Now);
+                log.LogInformation($"Created closed block record for block id {closedBlock.Id} at: {DateTimeOffset.Now}.");
 
                 return new OkResult();
             }
@@ -60,7 +57,6 @@ namespace TradingService.OrderManagement
                 Console.WriteLine(ex.Message);
                 return new BadRequestObjectResult(ex.Message);
             }
-            
         }
     }
 }
