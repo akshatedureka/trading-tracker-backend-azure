@@ -14,10 +14,12 @@ namespace TradingService.TradeManagement.Swing.Transfer
         public bool Active { get; set; }
         [JsonProperty(PropertyName = "currentQuantity")]
         public decimal CurrentQuantity { get; set; }
-        [JsonProperty(PropertyName = "currentProfit")]
-        public decimal CurrentProfit { get; set; }
+        [JsonProperty(PropertyName = "openProfit")]
+        public decimal OpenProfit { get; set; }
         [JsonProperty(PropertyName = "closedProfit")]
         public decimal ClosedProfit { get; set; }
+        [JsonProperty(PropertyName = "condensedProfit")]
+        public decimal CondensedProfit { get; set; }
         [JsonProperty(PropertyName = "totalProfit")]
         public decimal TotalProfit { get; set; }
     }
