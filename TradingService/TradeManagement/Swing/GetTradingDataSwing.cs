@@ -127,14 +127,17 @@ namespace TradingService.TradeManagement.Swing
                 }
             }
 
-            // Calculate profit for condensed blocks
-            foreach (var tradeData in tradingData)
+            if (condensedUserBlock != null)
             {
-                foreach (var condensedBlock in condensedUserBlock.CondensedBlocks)
+                // Calculate profit for condensed blocks
+                foreach (var tradeData in tradingData)
                 {
-                    if (tradeData.Symbol == condensedBlock.Symbol)
+                    foreach (var condensedBlock in condensedUserBlock.CondensedBlocks)
                     {
-                        tradeData.CondensedProfit = condensedBlock.Profit;
+                        if (tradeData.Symbol == condensedBlock.Symbol)
+                        {
+                            tradeData.CondensedProfit = condensedBlock.Profit;
+                        }
                     }
                 }
             }
