@@ -13,11 +13,20 @@ using TradingService.Common.Repository;
 
 namespace TradingService.AccountManagement
 {
-    public static class GetAccountInformation
+    public class GetAccountInformation
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public GetAccountInformation(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("GetAccountInformation")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
             var userId = req.Headers["From"].FirstOrDefault();
@@ -32,14 +41,14 @@ namespace TradingService.AccountManagement
 
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var account = container.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
                     .Where(u => u.UserId == userId).ToList().FirstOrDefault();
 
                 // ToDo: Check if email address changed, if so, update it
-                
+
                 if (account != null) return new OkObjectResult(account);
-                
+
                 // Create new account if it does not exist
                 var accountToCreate = new Account
                 {

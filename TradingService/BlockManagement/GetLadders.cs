@@ -13,10 +13,19 @@ using TradingService.Common.Repository;
 
 namespace TradingService.BlockManagement
 {
-    public static class GetLadders
+    public class GetLadders
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public GetLadders(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("GetLadders")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -33,7 +42,7 @@ namespace TradingService.BlockManagement
             // Read ladders from Cosmos DB
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var userLadderResponse = container
                     .GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();

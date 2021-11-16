@@ -16,10 +16,19 @@ using Newtonsoft.Json;
 
 namespace TradingService.SymbolManagement
 {
-    public static class CreateTradingSymbol
+    public class CreateTradingSymbol
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public CreateTradingSymbol(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("CreateTradingSymbol")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -33,7 +42,7 @@ namespace TradingService.SymbolManagement
             }
 
             const string containerId = "Symbols";
-            var container = await Repository.GetContainer(containerId);
+            var container = await _repository.GetContainer(containerId);
 
             var symbolToAdd = new Symbol
             {
@@ -48,7 +57,7 @@ namespace TradingService.SymbolManagement
 
             try
             {
-                var userSymbol = await Queries.GetUserSymbolByUserId(userId);
+                var userSymbol = await _queries.GetUserSymbolByUserId(userId);
 
                 if (userSymbol == null) // Initial UserSymbol item creation
                 {

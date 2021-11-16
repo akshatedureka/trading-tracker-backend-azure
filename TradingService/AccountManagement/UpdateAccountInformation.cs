@@ -19,11 +19,11 @@ namespace TradingService.AccountManagement
 {
     public class UpdateAccountInformation
     {
-        private readonly IConfiguration _configuration;
+        private readonly IRepository _repository;
 
-        public UpdateAccountInformation(IConfiguration configuration)
+        public UpdateAccountInformation(IRepository repository)
         {
-            _configuration = configuration;
+            _repository = repository;
         }
 
         [FunctionName("UpdateAccountInformation")]
@@ -57,7 +57,7 @@ namespace TradingService.AccountManagement
 
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var accountInformation = container.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 

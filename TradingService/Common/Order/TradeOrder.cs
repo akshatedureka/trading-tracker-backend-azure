@@ -10,9 +10,16 @@ using TradingService.Common.Repository;
 
 namespace TradingService.Common.Order
 {
-    public static class Order
+    public class TradeOrder : ITradeOrder
     {
-        public static async Task<Guid> CreateMarketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity)
+        private readonly IQueries _queries;
+
+        public TradeOrder(IQueries queries)
+        {
+            _queries = queries;
+        }
+
+        public async Task<Guid> CreateMarketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var stopLimitOrder = await alpacaTradingClient.PostOrderAsync(orderSide
@@ -21,7 +28,7 @@ namespace TradingService.Common.Order
             return stopLimitOrder.OrderId;
         }
 
-        public static async Task<Guid> CreateStopLimitOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice)
+        public async Task<Guid> CreateStopLimitOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var stopLimitOrder = await alpacaTradingClient.PostOrderAsync(orderSide
@@ -30,7 +37,7 @@ namespace TradingService.Common.Order
             return stopLimitOrder.OrderId;
         }
 
-        public static async Task<OneCancelsOtherIds> CreateOneCancelsOtherOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<OneCancelsOtherIds> CreateOneCancelsOtherOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var ocoOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, takeProfitPrice).OneCancelsOther(stopLossPrice));
@@ -43,7 +50,7 @@ namespace TradingService.Common.Order
             };
         }
 
-        public static async Task<BracketOrderIds> CreateMarketBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<BracketOrderIds> CreateMarketBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, quantity).Bracket(takeProfitPrice, stopLossPrice));
@@ -57,7 +64,7 @@ namespace TradingService.Common.Order
             };
         }
 
-        public static async Task<BracketOrderIds> CreateLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<BracketOrderIds> CreateLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
@@ -71,7 +78,7 @@ namespace TradingService.Common.Order
             };
         }
 
-        public static async Task<BracketOrderIds> CreateStopLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<BracketOrderIds> CreateStopLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
@@ -84,7 +91,8 @@ namespace TradingService.Common.Order
                     bracketOrder.Legs.Where(l => l.OrderType == OrderType.Stop).FirstOrDefault().OrderId
             };
         }
-        public static async Task<Guid> CreateTrailingStopOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal trailOffset)
+
+        public async Task<Guid> CreateTrailingStopOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal trailOffset)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var trailingStopOrder =
@@ -93,7 +101,7 @@ namespace TradingService.Common.Order
             return trailingStopOrder.OrderId;
         }
 
-        public static async Task<decimal> GetCurrentPrice(IConfiguration config, string userId, string symbol)
+        public async Task<decimal> GetCurrentPrice(IConfiguration config, string userId, string symbol)
         {
             try
             {
@@ -111,7 +119,7 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<decimal> GetPreviousDayClose(IConfiguration config, string userId, string symbol)
+        public async Task<decimal> GetPreviousDayClose(IConfiguration config, string userId, string symbol)
         {
             try
             {
@@ -127,7 +135,7 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId)
+        public async Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
@@ -143,7 +151,7 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<List<IPosition>> GetOpenPositions(IConfiguration config, string userId)
+        public async Task<List<IPosition>> GetOpenPositions(IConfiguration config, string userId)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
@@ -159,7 +167,7 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<List<IOrder>> GetOpenOrders(IConfiguration config, string userId)
+        public async Task<List<IOrder>> GetOpenOrders(IConfiguration config, string userId)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
@@ -176,7 +184,7 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders(IConfiguration config, string userId)
+        public async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders(IConfiguration config, string userId)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
 
@@ -197,10 +205,10 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static async Task<ClosedBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
+        public async Task<ClosedBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
-            var accountType = await Queries.GetAccountTypeByUserId(userId);
+            var accountType = await _queries.GetAccountTypeByUserId(userId);
 
             try
             {
@@ -256,14 +264,14 @@ namespace TradingService.Common.Order
             }
         }
 
-        public static IAlpacaTradingClient GetAlpacaTradingClient(IConfiguration config, string userId)
+        public IAlpacaTradingClient GetAlpacaTradingClient(IConfiguration config, string userId)
         {
             var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
             var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);
             var alpacaTradingClient = Environments.Paper.GetAlpacaTradingClient(new SecretKey(alpacaAPIKey, alpacaAPISecret));
             return alpacaTradingClient;
         }
-        public static IAlpacaDataClient GetAlpacaDataClient(IConfiguration config, string userId)
+        public IAlpacaDataClient GetAlpacaDataClient(IConfiguration config, string userId)
         {
             var alpacaAPIKey = config.GetValue<string>("AlpacaPaperAPIKey" + ":" + userId);
             var alpacaAPISecret = config.GetValue<string>("AlpacaPaperAPISec" + ":" + userId);

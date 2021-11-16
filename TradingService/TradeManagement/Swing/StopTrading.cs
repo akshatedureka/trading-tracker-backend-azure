@@ -15,10 +15,16 @@ namespace TradingService.TradeManagement.Swing
     public class StopTrading
     {
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public StopTrading(IConfiguration configuration)
+        public StopTrading(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         [FunctionName("StopTrading")]
@@ -33,10 +39,10 @@ namespace TradingService.TradeManagement.Swing
             try
             {
                 // Turn trading off
-                var updateTradingStatusReponse = Queries.UpdateTradingStatusForSymbol(userId, symbol);
+                var updateTradingStatusReponse = _queries.UpdateTradingStatusForSymbol(userId, symbol);
 
                 // Cancel order and close positions, return closed block information
-                var closedBlock = await Order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
+                var closedBlock = await _order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
                 if (closedBlock is null) // ToDo: split closing orders and positions. There may not be any open positions. Handle this error so that other real errors get caught and returned to the user.
                 {
                     log.LogInformation("No open positions.");
@@ -44,7 +50,7 @@ namespace TradingService.TradeManagement.Swing
                 }
 
                 // Get closed blocks
-                var closedBlocks = await Queries.GetClosedBlocksByUserIdAndSymbol(userId, symbol);
+                var closedBlocks = await _queries.GetClosedBlocksByUserIdAndSymbol(userId, symbol);
 
                 // Move closed blocks to one condensed block
                 var profit = closedBlock.Profit;
@@ -53,13 +59,13 @@ namespace TradingService.TradeManagement.Swing
                     profit += block.Profit;
                 }
 
-                await Queries.CreateCondensedBlockByUserIdAndSymbol(userId, symbol, profit);
+                await _queries.CreateCondensedBlockByUserIdAndSymbol(userId, symbol, profit);
 
                 // Delete closed blocks
-                await Queries.DeleteClosedBlocksByClosedBlocks(closedBlocks);
+                await _queries.DeleteClosedBlocksByClosedBlocks(closedBlocks);
 
                 // Reset blocks
-                await Queries.ResetUserBlockByUserIdAndSymbol(userId, symbol);
+                await _queries.ResetUserBlockByUserIdAndSymbol(userId, symbol);
 
                 log.LogInformation($"Stopped trading for user {userId} and symbol {symbol} at {DateTimeOffset.Now}.");
 

@@ -14,10 +14,18 @@ using TradingService.Common.Repository;
 
 namespace TradingService.BlockManagement
 {
-    public static class UpdateLadder
+    public class UpdateLadder
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public UpdateLadder(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
         [FunctionName("UpdateLadder")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -34,7 +42,7 @@ namespace TradingService.BlockManagement
 
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var userLadder = container.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                     .Where(l => l.UserId == userId).ToList().FirstOrDefault();
 

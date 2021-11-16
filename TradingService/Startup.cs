@@ -1,6 +1,9 @@
 ﻿using System;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using TradingService.Common.Order;
+using TradingService.Common.Repository;
 
 [assembly: FunctionsStartup(typeof(TradingService.Startup))]
 
@@ -16,6 +19,10 @@ namespace TradingService
 
         public override void Configure(IFunctionsHostBuilder builder)
         {
+            builder.Services.AddSingleton<IRepository, Repository>();
+            builder.Services.AddSingleton<IQueries, Queries>();
+            builder.Services.AddSingleton<ITradeOrder, TradeOrder>();
+
         }
     }
 }

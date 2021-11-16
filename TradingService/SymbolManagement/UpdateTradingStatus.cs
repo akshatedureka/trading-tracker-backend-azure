@@ -15,10 +15,18 @@ using TradingService.Common.Repository;
 
 namespace TradingService.SymbolManagement
 {
-    public static class UpdateTradingStatus
+    public class UpdateTradingStatus
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public UpdateTradingStatus(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
         [FunctionName("UpdateTradingStatus")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -35,7 +43,7 @@ namespace TradingService.SymbolManagement
 
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 

@@ -13,10 +13,19 @@ using TradingService.SymbolManagement.Models;
 
 namespace TradingService.SymbolManagement
 {
-    public static class GetTradingSymbols
+    public class GetTradingSymbols
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public GetTradingSymbols(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("GetTradingSymbols")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.User, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -34,7 +43,7 @@ namespace TradingService.SymbolManagement
             // Read symbols from Cosmos DB
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var userSymbolResponse = container
                     .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();

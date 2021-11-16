@@ -11,6 +11,15 @@ namespace TradingService.TradeManagement.Swing
 {
     public class CloseSwingBlockFromQueueMsg
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public CloseSwingBlockFromQueueMsg(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("CloseSwingBlockFromQueueMsg")]
         public async Task Run([QueueTrigger("closeswingblockqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
@@ -20,7 +29,7 @@ namespace TradingService.TradeManagement.Swing
             log.LogInformation($"CloseSwingBlockFromQueueMsg triggered for user {closeBlockMessage.UserId}, symbol {closeBlockMessage.Symbol}, block id {closeBlockMessage.BlockId}.");
 
             const string containerId = "BlocksClosed";
-            var container = await Repository.GetContainer(containerId);
+            var container = await _repository.GetContainer(containerId);
 
             var closedBlock = new ClosedBlock()
             {

@@ -15,10 +15,19 @@ using TradingService.Common.Repository;
 
 namespace TradingService.BlockManagement
 {
-    public static class CreateLadder
+    public class CreateLadder
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public CreateLadder(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("CreateLadder")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -32,7 +41,7 @@ namespace TradingService.BlockManagement
             }
 
             const string containerId = "Ladders";
-            var container = await Repository.GetContainer(containerId);
+            var container = await _repository.GetContainer(containerId);
 
             // Create new ladder to save
             var ladderToAdd = new Ladder()

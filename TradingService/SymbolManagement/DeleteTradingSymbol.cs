@@ -12,10 +12,19 @@ using TradingService.SymbolManagement.Models;
 
 namespace TradingService.SymbolManagement
 {
-    public static class DeleteTradingSymbol
+    public class DeleteTradingSymbol
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public DeleteTradingSymbol(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("DeleteTradingSymbol")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -31,7 +40,7 @@ namespace TradingService.SymbolManagement
 
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
                     .Where(s => s.UserId == userId).ToList().FirstOrDefault();
 

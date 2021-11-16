@@ -1,23 +1,50 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Configuration;
 
 namespace TradingService.Common.Repository
 {
-    public static class Repository
+    public class Repository : IRepository
     {
-        // The Azure Cosmos DB endpoint for running this sample.
-        private static readonly string EndpointUri = Environment.GetEnvironmentVariable("EndPointUri");
+        private readonly IConfiguration _configuration;
 
-        // The primary key for the Azure Cosmos account.
-        private static readonly string PrimaryKey = Environment.GetEnvironmentVariable("PrimaryKey");
-
-        // Connect to Cosmos DB using endpoint
-        private static readonly CosmosClient CosmosClient = new CosmosClient(EndpointUri, PrimaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
-
-        public static async Task<Container> GetContainer(string containerId, string databaseId = "TMS", string partitionKey = "userId")
+        public Repository(IConfiguration configuration)
         {
-            var database = (Database)await CosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
+            _configuration = configuration;
+        }
+
+        public async Task<Container> GetContainer(string containerId)
+        {
+            const string databaseId = "TMS";
+            const string partitionKey = "userId";
+
+            // The Azure Cosmos DB endpoint for running this sample.
+            var endpointUri = _configuration.GetValue<string>("EndPointUri");
+
+            // The primary key for the Azure Cosmos account.
+            var primaryKey = _configuration.GetValue<string>("PrimaryKey");
+
+            // Connect to Cosmos DB using endpoint
+            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
+
+            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
+            var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/" + partitionKey);
+            return container;
+        }
+
+        public async Task<Container> GetContainer(string containerId, string databaseId = "TMS", string partitionKey = "userId")
+        {
+            // The Azure Cosmos DB endpoint for running this sample.
+            var endpointUri = _configuration.GetValue<string>("EndPointUri");
+
+            // The primary key for the Azure Cosmos account.
+            var primaryKey = _configuration.GetValue<string>("PrimaryKey");
+
+            // Connect to Cosmos DB using endpoint
+            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
+
+            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/" + partitionKey);
             return container;
         }

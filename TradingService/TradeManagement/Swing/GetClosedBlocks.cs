@@ -14,10 +14,19 @@ using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement.Swing
 {
-    public static class GetClosedBlocks
+    public class GetClosedBlocks
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public GetClosedBlocks(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("GetClosedBlocks")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -30,7 +39,7 @@ namespace TradingService.TradeManagement.Swing
             // Read closed blocks from Cosmos DB
             try
             {
-                var container = await Repository.GetContainer(containerId);
+                var container = await _repository.GetContainer(containerId);
                 using var setIterator = container.GetItemLinqQueryable<ClosedBlock>().ToFeedIterator();
                 while (setIterator.HasMoreResults)
                 {
