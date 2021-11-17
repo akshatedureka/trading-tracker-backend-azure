@@ -158,18 +158,6 @@ namespace TradingService.Common.Repository
 
                 foreach (var block in blocks)
                 {
-                    block.ExternalBuyOrderId = new Guid();
-                    block.ExternalSellOrderId = new Guid();
-                    block.ExternalStopLossOrderId = new Guid();
-                    block.BuyOrderCreated = false;
-                    block.BuyOrderFilled = false;
-                    block.BuyOrderFilledPrice = 0;
-                    block.DateBuyOrderFilled = DateTime.MinValue;
-                    block.SellOrderCreated = false;
-                    block.SellOrderFilled = false;
-                    block.SellOrderFilledPrice = 0;
-                    block.DateSellOrderFilled = DateTime.MinValue;
-
                     var deleteBlockResponse = await container.DeleteItemAsync<Block>(block.Id, new PartitionKey(userId));
                 }
 
@@ -290,7 +278,6 @@ namespace TradingService.Common.Repository
 
                     var updateBlock = await container.ReplaceItemAsync(block, block.Id, new PartitionKey(userId));
                 }
-
 
                 return true;
             }
