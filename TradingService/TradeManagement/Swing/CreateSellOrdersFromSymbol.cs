@@ -82,7 +82,7 @@ namespace TradingService.TradeManagement.Swing
             var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol);
 
             // Get blocks above and below the current price to create sell orders
-            var blocksAbove = GetBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 10);
+            var blocksAbove = GetBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 5);
             var blocksBelow = GetBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
 
             // Create limit / stop limit orders for each block above and below current price
