@@ -26,7 +26,7 @@ namespace TradingService.SymbolManagement
 
         [FunctionName("GetTradingSymbols")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.User, "get", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to get symbols.");

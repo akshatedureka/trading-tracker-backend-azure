@@ -27,7 +27,7 @@ namespace TradingService.SymbolManagement
         }
         [FunctionName("UpdateTradingStatus")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();

@@ -25,7 +25,7 @@ namespace TradingService.SymbolManagement
 
         [FunctionName("DeleteTradingSymbol")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = null)] HttpRequest req,
             ILogger log)
         {
             var symbol = req.Query["symbol"];
