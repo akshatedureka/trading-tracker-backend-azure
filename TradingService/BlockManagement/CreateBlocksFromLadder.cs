@@ -84,12 +84,11 @@ namespace TradingService.BlockManagement
             try
             {
                 // Create a list of blocks to save based on the block prices
-                var blockId = 1;
                 foreach (var blockPrice in blockPrices)
                 {
                     var block = new Block
                     {
-                        Id = blockId.ToString(),
+                        Id = Guid.NewGuid().ToString(),
                         DateCreated = DateTime.Now,
                         UserId = userId,
                         Symbol = ladderData.Symbol,
@@ -102,7 +101,6 @@ namespace TradingService.BlockManagement
 
                     var newUserBlockResponse = await container.CreateItemAsync(block,
                         new PartitionKey(userId));
-                    blockId++;
                 }
 
                 // Update ladder to indicate blocks have been created // ToDo: move this to another call after the create user block response?
@@ -142,7 +140,7 @@ namespace TradingService.BlockManagement
         private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
-            const int numBlocks = 200;
+            const int numBlocks = 50;
 
             // Calculate range up
             for (var i = 0; i < numBlocks / 2; i++)
