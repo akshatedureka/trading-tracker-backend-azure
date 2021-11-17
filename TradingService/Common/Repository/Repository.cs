@@ -33,7 +33,7 @@ namespace TradingService.Common.Repository
             return container;
         }
 
-        public async Task<Container> GetContainer(string containerId, string databaseId = "TMS", string partitionKey = "userId")
+        public async Task<Container> GetContainer(string containerId, string databaseId, string partitionKey)
         {
             // The Azure Cosmos DB endpoint for running this sample.
             var endpointUri = _configuration.GetValue<string>("EndPointUri");
