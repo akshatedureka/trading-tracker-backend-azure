@@ -15,10 +15,19 @@ using TradingService.Common.Repository;
 
 namespace TradingService.BlockManagement
 {
-    public static class DeleteBlocksFromLadder
+    public class DeleteBlocksFromLadder
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public DeleteBlocksFromLadder(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("DeleteBlocksFromLadder")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
             ILogger log)
         {
@@ -36,15 +45,10 @@ namespace TradingService.BlockManagement
             {
                 const string containerId = "Blocks";
                 const string containerIdForLadders = "Ladders";
-                var container = await Repository.GetContainer(containerId);
-                var containerForLadders = await Repository.GetContainer(containerIdForLadders);
+                var container = await _repository.GetContainer(containerId);
+                var containerForLadders = await _repository.GetContainer(containerIdForLadders);
 
-                var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(u => u.UserId == userId && u.Symbol == ladder.Symbol).ToList().FirstOrDefault();
-
-                if (userBlock == null) return new NotFoundObjectResult($"No blocks were found for symbol {ladder.Symbol}.");
-
-                var deleteUserBlockResponse = await container.DeleteItemAsync<UserBlock>(userBlock.Id, new PartitionKey(userBlock.UserId));
+                var deleteBlocks = await _queries.DeleteBlocksByUserIdAndSymbol(userId, ladder.Symbol);
 
                 // Update ladder to indicate blocks have been deleted
                 var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)

@@ -16,25 +16,27 @@ namespace TradingService.TradeManagement.Swing
 {
     public class UpdateSwingShortBlockFromQueueMsg
     {
+        private ILogger _log;
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly string containerId = "Blocks";
+        private Container _container;
 
-        public UpdateSwingShortBlockFromQueueMsg(IConfiguration configuration)
+        public UpdateSwingShortBlockFromQueueMsg(IConfiguration configuration, IRepository repository, IQueries queries)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
         }
-
-        private static readonly string containerId = "Blocks";
-        private static Container _container;
-        private const int MaxNumShares = 50;
-        private static ILogger _log;
 
         [FunctionName("UpdateSwingShortBlockFromQueueMsg")]
         public async Task Run([QueueTrigger("tradeupdatequeueswingshort", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-
-            _container = await Repository.GetContainer(containerId);
-
             _log = log;
+            _log.LogInformation($"Update swing short block from queue msg triggered at {DateTime.Now}.");
+            
+            _container = await _repository.GetContainer(containerId);
 
             var orderUpdateMessage = JsonConvert.DeserializeObject<OrderUpdateMessage>(myQueueItem);
             _log.LogInformation($"Update swing short block from queue msg triggered for user {orderUpdateMessage.UserId}, symbol {orderUpdateMessage.Symbol}, external order id {orderUpdateMessage.OrderId}.");
@@ -53,18 +55,12 @@ namespace TradingService.TradeManagement.Swing
         {
             // Sell order has been executed, create new buy order in Alpaca, close and reset block
             _log.LogInformation($"Sell order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
-                       
-            // Get swing trade block
-            var userBlock = await Queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
-            if (userBlock == null)
-            {
-                _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}.");
-                return;
-            }
 
-            // Update block designating sell order has been executed
-            //ToDo: Block could be found using either sell order or stop loss order id's
-            var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
+            // Get swing trade blocks
+            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+
+            // Update block designating buy order has been executed
+            var blockToUpdate = blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
 
             if (blockToUpdate != null)
             {
@@ -79,7 +75,7 @@ namespace TradingService.TradeManagement.Swing
                 return;
             }
 
-            var userBlockReplaceResponse = await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+            var userBlockReplaceResponse = await _container.ReplaceItemAsync(blockToUpdate, blockToUpdate.Id, new PartitionKey(userId));
             _log.LogInformation($"Saved block id {blockToUpdate.Id} to DB with sell order created flag to true at: {DateTimeOffset.Now}.");
 
         }
@@ -89,62 +85,58 @@ namespace TradingService.TradeManagement.Swing
             // Buy order has been executed, update block to record buy order has been filled
             _log.LogInformation($"Buy order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
-            // Get swing trade block
-            var userBlock = await Queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
+            // Get swing trade blocks
+            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
-            if (userBlock == null)
+            // Update block designating buy order has been executed
+            var blockToUpdate = blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
+
+            // Retry 3 times to get block to allow for records to be updated
+            var retryAttemptCount = 1;
+            const int maxAttempts = 3;
+            while (blockToUpdate == null && retryAttemptCount <= maxAttempts)
             {
-                _log.LogError($"Could not find user block for user id {userId} and symbol {symbol} at: {DateTimeOffset.Now}.");
-                return;
+                await Task.Delay(1000); // Wait one second in between attempts
+                _log.LogError($"Could not find block with external buy order id {externalOrderId}. Retry attempt {retryAttemptCount}");
+                blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+                blockToUpdate = blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
+                retryAttemptCount += 1;
             }
 
-            var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
             if (blockToUpdate != null)
             {
                 _log.LogInformation($"Buy order has been executed for block id {blockToUpdate.Id}, external id {externalOrderId} and saved to DB at: {DateTimeOffset.Now}.");
-
-                // Check if the sell order has been executed, if not, this is an error state
-                var retryAttemptCount = 1;
-                const int maxAttempts = 3;
-                while (!blockToUpdate.SellOrderFilled && retryAttemptCount <= maxAttempts)
-                {
-                    await Task.Delay(1000); // Wait one second in between attempts
-                    _log.LogError($"Error while updating buy order executed. Sell order has not had SellOrderFilled flag set to true yet. Retry attempt {retryAttemptCount}");
-                    userBlock = await Queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
-                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
-                    retryAttemptCount += 1;
-                }
-
                 blockToUpdate.BuyOrderFilledPrice = executedBuyPrice;
 
-                // Put message on a queue to be processed by a different function
-                await TradeManagementCommon.CreateClosedBlockMsg( _log, _configuration, userBlock, blockToUpdate);
+                // Put message on a queue to be processed by a different function from a message queue
+                await TradeManagementCommon.CreateClosedBlockMsg(_log, _configuration, blockToUpdate);
 
                 // Replace block with new order
-                var stopLossPrice = blockToUpdate.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
-                var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, blockToUpdate.SellOrderPrice, blockToUpdate.BuyOrderPrice, stopLossPrice);
+                //var stopLossPrice = blockToUpdate.SellOrderPrice * 2; // ToDo - Update block creation to set stop loss price up instead of down
+                //var orderIds = await Order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, blockToUpdate.SellOrderPrice, blockToUpdate.BuyOrderPrice, stopLossPrice);
 
-                _log.LogInformation(
-                    $"Replacement sell order created for block id {blockToUpdate.Id}, symbol {userBlock.Symbol}, external buy id {orderIds.TakeProfitId}, external sell id {orderIds.ParentOrderId}, external stop id {orderIds.StopLossOrderId} and saved to DB at: {DateTimeOffset.Now}.");
+                //_log.LogInformation(
+                //    $"Replacement sell order created for block id {blockToUpdate.Id}, symbol {userBlock.Symbol}, external buy id {orderIds.TakeProfitId}, external sell id {orderIds.ParentOrderId}, external stop id {orderIds.StopLossOrderId} and saved to DB at: {DateTimeOffset.Now}.");
 
                 // Reset block
-                blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
-                blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.BuyOrderCreated = false;
-                blockToUpdate.BuyOrderFilled = false;
-                blockToUpdate.BuyOrderFilledPrice = 0;
-                blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
-                blockToUpdate.SellOrderCreated = true;
-                blockToUpdate.SellOrderFilled = false;
-                blockToUpdate.SellOrderFilledPrice = 0;
-                blockToUpdate.DateSellOrderFilled = DateTime.MinValue;
+                await TradeManagementCommon.CreateResetBlockMsg(_log, _configuration, blockToUpdate);
+                //blockToUpdate.ExternalBuyOrderId = new Guid();
+                //blockToUpdate.ExternalSellOrderId = new Guid();
+                //blockToUpdate.ExternalStopLossOrderId = new Guid();
+                //blockToUpdate.BuyOrderCreated = false;
+                //blockToUpdate.BuyOrderFilled = false;
+                //blockToUpdate.BuyOrderFilledPrice = 0;
+                //blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
+                //blockToUpdate.SellOrderCreated = false;
+                //blockToUpdate.SellOrderFilled = false;
+                //blockToUpdate.SellOrderFilledPrice = 0;
+                //blockToUpdate.DateSellOrderFilled = DateTime.MinValue;
 
                 // Replace the item with the updated content
-                var blockReplaceResponse =
-                    await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                //var blockReplaceResponse =
+                //    await _container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
 
-                _log.LogInformation($"Block reset for block id {blockToUpdate.Id} symbol {userBlock.Symbol} and saved to DB at: {DateTimeOffset.Now}.");
+                _log.LogInformation($"Message queued to reset short block id {blockToUpdate.Id} symbol {blockToUpdate.Symbol} at: {DateTimeOffset.Now}.");
             }
             else
             {

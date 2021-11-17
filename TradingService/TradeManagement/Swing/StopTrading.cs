@@ -39,7 +39,7 @@ namespace TradingService.TradeManagement.Swing
             try
             {
                 // Turn trading off
-                var updateTradingStatusReponse = _queries.UpdateTradingStatusForSymbol(userId, symbol);
+                var updateTradingStatusReponse = await _queries.UpdateTradingStatusForSymbol(userId, symbol);
 
                 // Cancel order and close positions, return closed block information
                 var closedBlock = await _order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);

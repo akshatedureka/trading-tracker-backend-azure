@@ -23,9 +23,16 @@ namespace TradingService.BlockManagement
     public class CreateBlocksFromLadder
     {
         private readonly IConfiguration _configuration;
-        public CreateBlocksFromLadder(IConfiguration configuration)
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
+
+        public CreateBlocksFromLadder(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         [FunctionName("CreateBlocksFromLadder")]
@@ -49,26 +56,17 @@ namespace TradingService.BlockManagement
             const string containerId = "Blocks";
             const string containerIdForLadders = "Ladders";
             const string containerIdForAccounts = "Accounts";
-            var container = await Repository.GetContainer(containerId);
-            var containerForLadders = await Repository.GetContainer(containerIdForLadders);
-            var containerForAccounts = await Repository.GetContainer(containerIdForAccounts);
+            var container = await _repository.GetContainer(containerId);
+            var containerForLadders = await _repository.GetContainer(containerIdForLadders);
+            var containerForAccounts = await _repository.GetContainer(containerIdForAccounts);
 
             // Get account type
-            var accountType = await Queries.GetAccountTypeByUserId(userId);
-
-            // First check if this userSymbolBlock has already been created, if so, return a conflict result
-            var existingUserSymbolBlocks = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                .Where(b => b.UserId == userId).ToList();
-
-            if (existingUserSymbolBlocks.Any(b => b.Symbol == ladderData.Symbol)) // ToDo: See if combining this with the above improves R/U's
-            {
-                return new ConflictResult();
-            }
+            var accountType = await _queries.GetAccountTypeByUserId(userId);
 
             // Get current price of symbol to know where to start creating blocks from
             try
             {
-                currentPrice = await Order.GetCurrentPrice(_configuration, userId, ladderData.Symbol);
+                currentPrice = await _order.GetCurrentPrice(_configuration, userId, ladderData.Symbol);
             }
             catch (Exception ex)
             {
@@ -82,41 +80,30 @@ namespace TradingService.BlockManagement
 
             // Create blocks (order by buy price ascending)
             var blockPrices = GenerateBlockPrices(accountType, currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage, ladderData.StopLossPercentage).OrderBy(p => p.BuyPrice);
-            var blocks = new List<Block>();
-
-            // Create a list of blocks to save based on the block prices
-            var blockId = 1;
-            foreach (var blockPrice in blockPrices)
-            {
-                var block = new Block
-                {
-                    Id = blockId.ToString(),
-                    DateCreated = DateTime.Now,
-                    ConfidenceLevel = initialConfidenceLevel,
-                    BuyOrderPrice = blockPrice.BuyPrice,
-                    SellOrderPrice = blockPrice.SellPrice,
-                    StopLossOrderPrice = blockPrice.StopLossPrice
-                };
-
-                blocks.Add(block);
-                blockId++;
-            }
 
             try
             {
-                // Create UserBlock item for user with blocks added
-                var userBlockToCreate = new UserBlock()
+                // Create a list of blocks to save based on the block prices
+                var blockId = 1;
+                foreach (var blockPrice in blockPrices)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    DateCreated = DateTime.Now,
-                    UserId = userId,
-                    Symbol = ladderData.Symbol,
-                    NumShares = ladderData.InitialNumShares,
-                    Blocks = blocks
-                };
+                    var block = new Block
+                    {
+                        Id = blockId.ToString(),
+                        DateCreated = DateTime.Now,
+                        UserId = userId,
+                        Symbol = ladderData.Symbol,
+                        NumShares = ladderData.InitialNumShares,
+                        ConfidenceLevel = initialConfidenceLevel,
+                        BuyOrderPrice = blockPrice.BuyPrice,
+                        SellOrderPrice = blockPrice.SellPrice,
+                        StopLossOrderPrice = blockPrice.StopLossPrice
+                    };
 
-                var newUserBlockResponse = await container.CreateItemAsync(userBlockToCreate,
-                    new PartitionKey(userBlockToCreate.UserId));
+                    var newUserBlockResponse = await container.CreateItemAsync(block,
+                        new PartitionKey(userId));
+                    blockId++;
+                }
 
                 // Update ladder to indicate blocks have been created // ToDo: move this to another call after the create user block response?
                 var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)

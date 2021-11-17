@@ -21,10 +21,16 @@ namespace TradingService.TradeManagement.Swing
     public class GetTradingDataSwing
     {
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public GetTradingDataSwing(IConfiguration configuration)
+        public GetTradingDataSwing(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         [FunctionName("GetTradingDataSwing")]
@@ -40,9 +46,9 @@ namespace TradingService.TradeManagement.Swing
             const string containerIdForClosedBlocks = "BlocksClosed";
             const string containerIdForCondensedlocks = "BlocksCondensed";
 
-            var containerForSymbols = await Repository.GetContainer(containerIdForSymbols);
-            var containerForBlocksClosed = await Repository.GetContainer(containerIdForClosedBlocks);
-            var containerForBlocksCondensed = await Repository.GetContainer(containerIdForCondensedlocks);
+            var containerForSymbols = await _repository.GetContainer(containerIdForSymbols);
+            var containerForBlocksClosed = await _repository.GetContainer(containerIdForClosedBlocks);
+            var containerForBlocksCondensed = await _repository.GetContainer(containerIdForCondensedlocks);
 
             // Get symbol data
             var symbols = new List<Symbol>();
@@ -143,7 +149,7 @@ namespace TradingService.TradeManagement.Swing
             }
 
             // Add in position data
-            var positions = await Order.GetOpenPositions(_configuration, userId);
+            var positions = await _order.GetOpenPositions(_configuration, userId);
 
             foreach (var position in positions)
             {
