@@ -26,7 +26,7 @@ namespace TradingService.Common.Repository
             var primaryKey = _configuration.GetValue<string>("PrimaryKey");
 
             // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
+            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService", ConnectionMode = ConnectionMode.Gateway });
 
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/" + partitionKey);
@@ -42,7 +42,7 @@ namespace TradingService.Common.Repository
             var primaryKey = _configuration.GetValue<string>("PrimaryKey");
 
             // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
+            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService", ConnectionMode = ConnectionMode.Gateway });
 
             var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/" + partitionKey);
