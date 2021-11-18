@@ -21,7 +21,12 @@ namespace TradingService.Common.Repository
 
         public Task<List<Block>> GetBlocksByUserIdAndSymbol(string userId, string symbol);
 
+        public Task<bool> CreateBlock(Block block);
+
         public Task<bool> DeleteBlocksByUserIdAndSymbol(string userId, string symbol);
+
+        public Task<bool> DeleteBlockByBlockUserIdAndBlockId(string userId, string blockId);
+
         public Task<List<ClosedBlock>> GetClosedBlocksByUserIdAndSymbol(string userId, string symbol);
 
         public Task<bool> CreateCondensedBlockByUserIdAndSymbol(string userId, string symbol, decimal profit);

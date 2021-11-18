@@ -171,6 +171,38 @@ namespace TradingService.Common.Repository
             }
         }
 
+        public async Task<bool> DeleteBlockByBlockUserIdAndBlockId(string userId, string blockId)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+                var deleteBlockResponse = await container.DeleteItemAsync<Block>(blockId, new PartitionKey(userId));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue deleting block from Cosmos DB: {ex.Message}.");
+                return false;
+            }
+        }
+
+        public async Task<bool> CreateBlock(Block block)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+                var newBlock = await container.CreateItemAsync(block, new PartitionKey(block.UserId));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue deleting block from Cosmos DB: {ex.Message}.");
+                return false;
+            }
+        }
+
         public async Task<List<ClosedBlock>> GetClosedBlocksByUserIdAndSymbol(string userId, string symbol)
         {
             try
