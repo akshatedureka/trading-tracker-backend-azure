@@ -40,7 +40,7 @@ namespace TradeUpdateService
                 .GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true).ToList();
 
             // Get the connection string from app settings
-            var connectionString = _configuration.GetValue<string>("AzureWebJobsStorage");
+            var connectionString = _configuration.GetValue<string>("AzureWebJobsStorageRemote");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
             var queueClientLong = new QueueClient(connectionString, "swingbuyorderqueue");

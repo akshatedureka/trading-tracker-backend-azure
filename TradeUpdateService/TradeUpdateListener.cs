@@ -26,7 +26,7 @@ namespace TradeUpdateService
 
         public async Task StartListening(string userId, AccountTypes accountType, string alpacaKey, string alpacaSecret)
         {
-            Console.WriteLine("I'm listening as user " + userId);
+            Console.WriteLine("I'm listening as user " + userId + "at: " + DateTime.Now);
 
              _userId = userId;
             var queueName = "";
@@ -50,7 +50,7 @@ namespace TradeUpdateService
             }
 
             // Get the connection string from app settings
-            var connectionString = _config.GetValue<string>("AzureWebJobsStorage");
+            var connectionString = _config.GetValue<string>("AzureWebJobsStorageRemote");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
             _queueClient = new QueueClient(connectionString, queueName);
