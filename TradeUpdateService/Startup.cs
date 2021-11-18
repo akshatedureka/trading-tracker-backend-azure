@@ -25,6 +25,7 @@ namespace TradeUpdateService
             services.AddScoped<ITradeUpdateListener, TradeUpdateListener>();
             services.AddSingleton<IDayTrading, DayTrading>();
             services.AddSingleton<ICreateOrders, CreateOrders>();
+            services.AddSingleton<IUpdateBlockRange, UpdateBlockRange>();
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
         }
 
@@ -48,9 +49,11 @@ namespace TradeUpdateService
 
             app.UseHangfireDashboard();
 
+            //ToDo: Do not create orders until users are connected - only an issue on startup - could startup before market open when running live in Azure
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
             RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), "*/5 * * * *"); // every 5 minutes
             RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/15 * * * * *"); // every 15 seconds
+            RecurringJob.AddOrUpdate<IUpdateBlockRange>(x => x.CreateUpdateBlockRangeMessage(), "*/5 * * * *"); // every 5 minutes
         }
     }
 }
