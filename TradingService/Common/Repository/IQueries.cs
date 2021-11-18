@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using TradingService.AccountManagement.Enums;
+using TradingService.BlockManagement.Models;
 using TradingService.Common.Models;
 using TradingService.SymbolManagement.Models;
 
@@ -30,5 +31,7 @@ namespace TradingService.Common.Repository
         public Task<bool> ResetUserBlockByUserIdAndSymbol(string userId, string symbol);
 
         public Task<AccountTypes> GetAccountTypeByUserId(string userId);
+
+        public Task<UserLadder> GetLaddersByUserId(string userId);
     }
 }

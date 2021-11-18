@@ -16,11 +16,9 @@ namespace TradingService.BlockManagement
     public class GetLadders
     {
         private readonly IQueries _queries;
-        private readonly IRepository _repository;
 
-        public GetLadders(IRepository repository, IQueries queries)
+        public GetLadders(IQueries queries)
         {
-            _repository = repository;
             _queries = queries;
         }
 
@@ -37,16 +35,11 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("User id has not been provided.");
             }
 
-            const string containerId = "Ladders";
-
             // Read ladders from Cosmos DB
             try
             {
-                var container = await _repository.GetContainer(containerId);
-                var userLadderResponse = container
-                    .GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
-                return userLadderResponse != null ? new OkObjectResult(userLadderResponse.Ladders) : new OkObjectResult(new List<Ladder>());
+                var userLadder = await _queries.GetLaddersByUserId(userId);
+                return userLadder != null ? new OkObjectResult(userLadder.Ladders) : new OkObjectResult(new List<Ladder>());
             }
             catch (CosmosException ex)
             {

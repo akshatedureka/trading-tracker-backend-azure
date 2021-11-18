@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using TradingService.AccountManagement.Enums;
 using TradingService.AccountManagement.Models;
 using Microsoft.Extensions.Configuration;
+using TradingService.BlockManagement.Models;
 
 namespace TradingService.Common.Repository
 {
@@ -302,6 +303,24 @@ namespace TradingService.Common.Repository
             {
                 Console.WriteLine($"Issue resetting user block in Cosmos DB: {ex.Message}.");
                 return AccountTypes.NotSet;
+            }
+        }
+
+        public async Task<UserLadder> GetLaddersByUserId(string userId)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdLadders);
+                var userLadder = container
+                    .GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+
+                return userLadder;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue resetting user block in Cosmos DB: {ex.Message}.");
+                return null;
             }
         }
     }
