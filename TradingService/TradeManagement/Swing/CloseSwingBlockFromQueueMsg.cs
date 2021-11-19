@@ -23,8 +23,6 @@ namespace TradingService.TradeManagement.Swing
         [FunctionName("CloseSwingBlockFromQueueMsg")]
         public async Task Run([QueueTrigger("closeswingblockqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-            log.LogInformation($"CloseSwingBlockFromQueueMsg triggered.");
-
             var closeBlockMessage = JsonConvert.DeserializeObject<ClosedBlockMessage>(myQueueItem);
             log.LogInformation($"CloseSwingBlockFromQueueMsg triggered for user {closeBlockMessage.UserId}, symbol {closeBlockMessage.Symbol}, block id {closeBlockMessage.BlockId}.");
 

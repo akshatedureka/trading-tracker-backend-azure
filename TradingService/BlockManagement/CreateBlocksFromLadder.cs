@@ -83,6 +83,8 @@ namespace TradingService.BlockManagement
 
             try
             {
+                var blocks = new List<Block>();
+
                 // Create a list of blocks to save based on the block prices
                 foreach (var blockPrice in blockPrices)
                 {
@@ -90,27 +92,35 @@ namespace TradingService.BlockManagement
                     {
                         Id = Guid.NewGuid().ToString(),
                         DateCreated = DateTime.Now,
-                        UserId = userId,
-                        Symbol = ladderData.Symbol,
-                        NumShares = ladderData.InitialNumShares,
                         ConfidenceLevel = initialConfidenceLevel,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
                     };
 
-                    var newUserBlockResponse = await container.CreateItemAsync(block,
-                        new PartitionKey(userId));
+                    blocks.Add(block);
                 }
 
-                // Update ladder to indicate blocks have been created // ToDo: move this to another call after the create user block response?
+                // Create UserBlock item for user with blocks added
+                var userBlockToCreate = new UserBlock()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DateCreated = DateTime.Now,
+                    UserId = userId,
+                    Symbol = ladderData.Symbol,
+                    NumShares = ladderData.InitialNumShares,
+                    Blocks = blocks
+                };
+
+                var newUserBlockResponse = await container.CreateItemAsync(userBlockToCreate,
+                    new PartitionKey(userBlockToCreate.UserId));                // Update ladder to indicate blocks have been created // ToDo: move this to another call after the create user block response?
                 var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
-                    .Where(l => l.UserId == userId).ToList().FirstOrDefault();
+                .Where(l => l.UserId == userId).ToList().FirstOrDefault();
 
                 if (userLadder == null) return new NotFoundObjectResult("User Ladder not found.");
 
                 var ladderToUpdate = userLadder.Ladders.FirstOrDefault(l => l.Symbol == ladderData.Symbol);
-                
+
                 if (ladderToUpdate != null)
                 {
                     ladderToUpdate.BlocksCreated = true;
@@ -140,7 +150,7 @@ namespace TradingService.BlockManagement
         private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
-            const int numBlocks = 50;
+            const int numBlocks = 200;
 
             // Calculate range up
             for (var i = 0; i < numBlocks / 2; i++)

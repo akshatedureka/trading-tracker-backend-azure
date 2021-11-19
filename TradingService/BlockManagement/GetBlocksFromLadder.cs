@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Cosmos;
 using TradingService.Common.Repository;
+using TradingService.Common.Models;
 
 namespace TradingService.BlockManagement
 {
@@ -44,8 +45,10 @@ namespace TradingService.BlockManagement
             try
             {
                 var container = await _repository.GetContainer(containerId);
-                var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
-                return blocks != null ? new OkObjectResult(blocks) : new OkObjectResult("No blocks found for user and symbol.");
+                var userBlockResponse = container
+                    .GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
+                    .Where(b => b.UserId == userId && b.Symbol == symbol).ToList().FirstOrDefault();
+                return userBlockResponse != null ? new OkObjectResult(userBlockResponse.Blocks) : new OkObjectResult("No blocks found for user and symbol.");
             }
             catch (CosmosException ex)
             {

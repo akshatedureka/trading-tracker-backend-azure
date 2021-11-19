@@ -11,7 +11,7 @@ namespace TradingService.TradeManagement.Swing.Common
 {
     public class TradeManagementCommon
     {
-        public static async Task CreateClosedBlockMsg(ILogger log, IConfiguration config, Block block)
+        public static async Task CreateClosedBlockMsg(ILogger log, IConfiguration config, UserBlock userBlock, Block block)
         {
             // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
@@ -22,9 +22,9 @@ namespace TradingService.TradeManagement.Swing.Common
             var msg = new ClosedBlockMessage()
             {
                 BlockId = block.Id,
-                UserId = block.UserId,
-                Symbol = block.Symbol,
-                NumShares = block.NumShares,
+                UserId = userBlock.UserId,
+                Symbol = userBlock.Symbol,
+                NumShares = userBlock.NumShares,
                 ExternalBuyOrderId = block.ExternalBuyOrderId,
                 ExternalSellOrderId = block.ExternalSellOrderId,
                 ExternalStopLossOrderId = block.ExternalStopLossOrderId,
@@ -35,10 +35,10 @@ namespace TradingService.TradeManagement.Swing.Common
             };
 
             await queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));
-            log.LogInformation($"Created closed block queue msg for user {block.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
+            log.LogInformation($"Created closed block queue msg for user {userBlock.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
         }
 
-        public static async Task CreateResetBlockMsg(ILogger log, IConfiguration config, Block block)
+        public static async Task CreateResetBlockMsg(ILogger log, IConfiguration config, UserBlock userBlock, Block block)
         {
             // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
@@ -49,12 +49,12 @@ namespace TradingService.TradeManagement.Swing.Common
             var msg = new ResetBlockMessage()
             {
                 BlockId = block.Id,
-                UserId = block.UserId,
-                Symbol = block.Symbol
+                UserId = userBlock.UserId,
+                Symbol = userBlock.Symbol,
             };
 
             await queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));
-            log.LogInformation($"Created reset block queue msg for user {block.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
+            log.LogInformation($"Created reset block queue msg for user {userBlock.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
         }
 
         private static string Base64Encode(string plainText)

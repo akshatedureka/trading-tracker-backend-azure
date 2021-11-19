@@ -21,6 +21,8 @@ namespace TradingService.Common.Repository
 
         public Task<List<Block>> GetBlocksByUserIdAndSymbol(string userId, string symbol);
 
+        public Task<UserBlock> GetUserBlockByUserIdAndSymbol(string userId, string symbol);
+
         public Task<bool> CreateBlock(Block block);
 
         public Task<bool> DeleteBlocksByUserIdAndSymbol(string userId, string symbol);
@@ -33,7 +35,9 @@ namespace TradingService.Common.Repository
 
         public Task<bool> DeleteClosedBlocksByClosedBlocks(List<ClosedBlock> closedBlocks);
 
-        public Task<bool> ResetUserBlockByUserIdAndSymbol(string userId, string symbol);
+        public Task<bool> ResetUserBlocksByUserIdAndSymbol(string userId, string symbol);
+
+        public Task<bool> ResetUserBlockByUserIdAndSymbol(string userId, string symbol, string blockId);
 
         public Task<AccountTypes> GetAccountTypeByUserId(string userId);
 

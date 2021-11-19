@@ -65,7 +65,7 @@ namespace TradingService.TradeManagement.Swing
                 await _queries.DeleteClosedBlocksByClosedBlocks(closedBlocks);
 
                 // Reset blocks
-                await _queries.ResetUserBlockByUserIdAndSymbol(userId, symbol);
+                await _queries.ResetUserBlocksByUserIdAndSymbol(userId, symbol);
 
                 log.LogInformation($"Stopped trading for user {userId} and symbol {symbol} at {DateTimeOffset.Now}.");
 

@@ -12,6 +12,8 @@ using TradingService.Common.Models;
 using TradingService.Common.Repository;
 using Alpaca.Markets;
 using TradingService.TradeManagement.Swing.Transfer;
+using Microsoft.Azure.Cosmos;
+using System;
 
 namespace TradingService.TradeManagement.Swing
 {
@@ -43,21 +45,45 @@ namespace TradingService.TradeManagement.Swing
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            var symbols = await _queries.GetActiveTradingSymbolsByUserId(userId);
-            var blocks = await _queries.GetBlocksByUserIdAndSymbols(userId, symbols);
+            // The name of the database and container we will create
+            const string containerIdForBlocks = "Blocks";
+
+            // ToDo: Create common DB query in Common project to use throughout functions
+            // Get open user blocks
+            var userBlocks = new List<UserBlock>();
+            try
+            {
+                var containerForBlocks = await _repository.GetContainer(containerIdForBlocks);
+                userBlocks = containerForBlocks
+                    .GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
+                    .Where(b => b.UserId == userId).ToList();
+            }
+            catch (CosmosException ex)
+            {
+                log.LogError("Issue getting blocks from Cosmos DB item {ex}", ex);
+                return new BadRequestObjectResult("Error getting blocks from DB: " + ex);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Issue getting blocks {ex}", ex);
+                return new BadRequestObjectResult("Error getting blocks:" + ex);
+            }
+
+            // Get open orders
             var openOrders = await _order.GetOpenOrders(_configuration, userId);
 
             // Create a list of comparison data to return
             var comparisonData = new List<ComparisonDataTransfer>();
 
             // Run comparison logic and populate comparison data
-            foreach (var symbol in symbols)
+            foreach (var userBlock in userBlocks)
             {
                 // Get blocks with open buy or sell orders
-                var openBuyOrderBlocks = blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated);
-                var openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated);
-                var openBuyOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol.Name && o.OrderSide == OrderSide.Buy);
-                var openSellOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol.Name && o.OrderSide == OrderSide.Sell);
+                var symbol = userBlock.Symbol;
+                var openBuyOrderBlocks = userBlock.Blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated);
+                var openSellOrderBlocks = userBlock.Blocks.Where(b => b.SellOrderCreated);
+                var openBuyOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol && o.OrderSide == OrderSide.Buy);
+                var openSellOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol && o.OrderSide == OrderSide.Sell);
 
                 // Cycle through open buy order blocks and see if buy order exists in external system
                 foreach (var openBuyOrderBlock in openBuyOrderBlocks)

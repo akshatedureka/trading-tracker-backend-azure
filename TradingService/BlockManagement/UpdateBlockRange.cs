@@ -60,7 +60,8 @@ namespace TradingService.BlockManagement
             }
 
             // Get current blocks
-            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+            var userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
+            var blocks = userBlock.Blocks;
 
             // Get new blocks ToDo: Move this to common module
             var blockPrices = GenerateBlockPrices(accountType, currentPrice, ladder.BuyPercentage, ladder.SellPercentage, ladder.StopLossPercentage).OrderBy(p => p.BuyPrice);
@@ -103,9 +104,6 @@ namespace TradingService.BlockManagement
                     {
                         Id = Guid.NewGuid().ToString(),
                         DateCreated = DateTime.Now,
-                        UserId = userId,
-                        Symbol = ladder.Symbol,
-                        NumShares = ladder.InitialNumShares,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
@@ -127,9 +125,6 @@ namespace TradingService.BlockManagement
                     {
                         Id = Guid.NewGuid().ToString(),
                         DateCreated = DateTime.Now,
-                        UserId = userId,
-                        Symbol = ladder.Symbol,
-                        NumShares = ladder.InitialNumShares,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
