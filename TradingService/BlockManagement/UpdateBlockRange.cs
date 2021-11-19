@@ -62,6 +62,7 @@ namespace TradingService.BlockManagement
             // Get current blocks
             var userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
             var blocks = userBlock.Blocks;
+            var blocksToRemove = new List<Block>();
 
             // Get new blocks ToDo: Move this to common module
             var blockPrices = GenerateBlockPrices(accountType, currentPrice, ladder.BuyPercentage, ladder.SellPercentage, ladder.StopLossPercentage).OrderBy(p => p.BuyPrice);
@@ -76,10 +77,7 @@ namespace TradingService.BlockManagement
             {
                 if (block.BuyOrderPrice < minBlockPriceNew && !block.BuyOrderCreated && !block.SellOrderCreated)
                 {
-                    if (!await _queries.DeleteBlockByBlockUserIdAndBlockId(userId, block.Id))
-                    {
-                        log.LogInformation($"Error deleting block for {userId} and symbol {symbol} while updating block range.");
-                    };
+                    blocksToRemove.Add(block);
                 }
             }
 
@@ -88,12 +86,11 @@ namespace TradingService.BlockManagement
             {
                 if (block.BuyOrderPrice > maxBlockPriceNew && !block.BuyOrderCreated && !block.SellOrderCreated)
                 {
-                    if (!await _queries.DeleteBlockByBlockUserIdAndBlockId(userId, block.Id))
-                    {
-                        log.LogInformation($"Error deleting block for {userId} and symbol {symbol} while updating block range.");
-                    };
+                    blocksToRemove.Add(block);
                 }
             }
+
+            blocks.RemoveAll(blocksToRemove.Contains);
 
             // Add new low blocks
             foreach (var blockPrice in blockPrices)
@@ -109,10 +106,7 @@ namespace TradingService.BlockManagement
                         StopLossOrderPrice = blockPrice.StopLossPrice
                     };
 
-                    if (!await _queries.CreateBlock(block))
-                    {
-                        log.LogInformation($"Error creating block for {userId} and symbol {symbol} while updating block range.");
-                    }
+                    blocks.Add(block);
                 }
             }
 
@@ -130,18 +124,17 @@ namespace TradingService.BlockManagement
                         StopLossOrderPrice = blockPrice.StopLossPrice
                     };
 
-                    if (!await _queries.CreateBlock(block))
-                    {
-                        log.LogInformation($"Error creating block for {userId} and symbol {symbol} while updating block range.");
-                    }
+                    blocks.Add(block);
                 }
             }
+
+            await _queries.UpdateUserBlock(userBlock);
         }
 
         private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
-            const int numBlocks = 50;
+            const int numBlocks = 200;
 
             // Calculate range up
             for (var i = 0; i < numBlocks / 2; i++)

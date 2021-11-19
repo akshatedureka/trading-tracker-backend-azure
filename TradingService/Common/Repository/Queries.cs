@@ -222,20 +222,20 @@ namespace TradingService.Common.Repository
             }
         }
 
-        public async Task<bool> CreateBlock(Block block)
+        public async Task<bool> UpdateUserBlock(UserBlock userBlock)
         {
-        //    try
-        //    {
-        //        var container = await _repository.GetContainer(containerIdBlocks);
-        //        var newBlock = await container.CreateItemAsync(block, new PartitionKey(block.UserId));
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+                var userBlockResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
 
-        //        return true;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Issue deleting block from Cosmos DB: {ex.Message}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue updating user block from Cosmos DB: {ex.Message}.");
                 return false;
-        //    }
+            }
         }
 
         public async Task<List<ClosedBlock>> GetClosedBlocksByUserIdAndSymbol(string userId, string symbol)
