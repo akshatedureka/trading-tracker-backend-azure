@@ -49,11 +49,11 @@ namespace TradeUpdateService
 
             app.UseHangfireDashboard();
 
-            //ToDo: Do not create orders until users are connected - only an issue on startup - could startup before market open when running live in Azure
+            BackgroundJob.Enqueue<IConnectUsers>(x => x.GetUsersToConnect()); // run immediately, then on a schedule to check for new users
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
             RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), "*/5 * * * *"); // every 5 minutes
             RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/15 * * * * *"); // every 15 seconds
-            RecurringJob.AddOrUpdate<IUpdateBlockRange>(x => x.CreateUpdateBlockRangeMessage(), "*/5 * * * *"); // every 5 minutes
+            RecurringJob.AddOrUpdate<IUpdateBlockRange>(x => x.CreateUpdateBlockRangeMessage(), Cron.Hourly);
         }
     }
 }
