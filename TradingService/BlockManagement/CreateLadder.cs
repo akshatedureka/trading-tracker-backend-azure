@@ -28,7 +28,7 @@ namespace TradingService.BlockManagement
 
         [FunctionName("CreateLadder")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             var userId = req.Headers["From"].FirstOrDefault();

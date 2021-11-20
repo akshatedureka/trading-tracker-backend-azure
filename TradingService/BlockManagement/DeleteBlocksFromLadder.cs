@@ -28,7 +28,7 @@ namespace TradingService.BlockManagement
 
         [FunctionName("DeleteBlocksFromLadder")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = null)] HttpRequest req,
             ILogger log)
         {
             // ToDo: Delete blocks from user blocks based on user id / symbol; update ladder to indicate blocks not created

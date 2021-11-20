@@ -28,7 +28,7 @@ namespace TradingService.TradeManagement.Swing
         }
 
         [FunctionName("StopTrading")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req, ILogger log)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req, ILogger log)
         {
             // Get symbol name
             string symbol = req.Query["symbol"];
