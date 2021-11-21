@@ -19,10 +19,16 @@ namespace TradingService.TradeManagement.Day
     public class UpdateDayBlockFromQueueMsg
     {
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public UpdateDayBlockFromQueueMsg(IConfiguration configuration)
+        public UpdateDayBlockFromQueueMsg(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         private static readonly string containerBlocksDayArchiveId = "BlocksDayArchive";
@@ -32,7 +38,7 @@ namespace TradingService.TradeManagement.Day
         [FunctionName("UpdateDayBlockFromQueueMsg")]
         public async Task Run([QueueTrigger("tradeupdatequeueday", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-            _containerBlocksDayArchive = await Repository.GetContainer(containerBlocksDayArchiveId);
+            _containerBlocksDayArchive = await _repository.GetContainer(containerBlocksDayArchiveId);
 
             _log = log;
 
@@ -66,7 +72,7 @@ namespace TradingService.TradeManagement.Day
                     try
                     {
                         // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
-                        var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Sell, userId, symbol,
+                        var orderId = await _order.CreateTrailingStopOrder(_configuration, OrderSide.Sell, userId, symbol,
                             dayBlock.NumShares, .5M);
                         dayBlock.ExternalSellOrderId = orderId;
                     }
@@ -109,7 +115,7 @@ namespace TradingService.TradeManagement.Day
                     try
                     {
                         // ToDo: trailing stop must be more than .001 of executed buy price, if .05 is less than required amount use .0015 of buy price
-                        var orderId = await Order.CreateTrailingStopOrder(_configuration, OrderSide.Buy, userId, symbol,
+                        var orderId = await _order.CreateTrailingStopOrder(_configuration, OrderSide.Buy, userId, symbol,
                             dayBlock.NumShares, .5M);
                         dayBlock.ExternalBuyOrderId = orderId;
                     }
@@ -136,13 +142,13 @@ namespace TradingService.TradeManagement.Day
             }
         }
 
-        private async Task<ArchiveBlock> GetArchiveDayBlockIfExists(string userId, Guid externalOrderId)
+        private async Task<ClosedBlock> GetArchiveDayBlockIfExists(string userId, Guid externalOrderId)
         {
             // Read user blocks from Cosmos DB
-            var archiveDayBlock = new List<ArchiveBlock>();
+            var archiveDayBlock = new List<ClosedBlock>();
             try
             {
-                using var setIterator = _containerBlocksDayArchive.GetItemLinqQueryable<ArchiveBlock>()
+                using var setIterator = _containerBlocksDayArchive.GetItemLinqQueryable<ClosedBlock>()
                     .Where(b => b.UserId == userId && (b.ExternalBuyOrderId == externalOrderId || b.ExternalSellOrderId == externalOrderId))
                     .ToFeedIterator();
                 while (setIterator.HasMoreResults)

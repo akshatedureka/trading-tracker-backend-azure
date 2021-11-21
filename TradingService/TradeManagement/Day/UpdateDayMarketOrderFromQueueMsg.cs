@@ -20,10 +20,17 @@ namespace TradingService.TradeManagement.Day
     public class UpdateDayMarketOrderFromQueueMsg
     {
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public UpdateDayMarketOrderFromQueueMsg(IConfiguration configuration)
+
+        public UpdateDayMarketOrderFromQueueMsg(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         private static readonly string containerBlocksDayArchiveId = "BlocksDayArchive";
@@ -33,7 +40,7 @@ namespace TradingService.TradeManagement.Day
         [FunctionName("UpdateDayMarketOrderFromQueueMsg")]
         public async Task Run([QueueTrigger("tradeupdatequeuedaymarket", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-            _containerBlocksDayArchive = await Repository.GetContainer(containerBlocksDayArchiveId);
+            _containerBlocksDayArchive = await _repository.GetContainer(containerBlocksDayArchiveId);
 
             _log = log;
 
@@ -42,7 +49,7 @@ namespace TradingService.TradeManagement.Day
             var symbolName = orderUpdateMessage.Symbol;
 
             // Get symbol from DB to get take profit and stop loss prices
-            var symbol = await Queries.GetSymbolByUserIdAndSymbolName(userId, symbolName);
+            var symbol = await _queries.GetSymbolByUserIdAndSymbolName(userId, symbolName);
 
             if (orderUpdateMessage.OrderSide == OrderSide.Buy)
             {
@@ -71,7 +78,7 @@ namespace TradingService.TradeManagement.Day
                 {
                     try
                     {
-                        var orderIds = await Order.CreateOneCancelsOtherOrder(_configuration, OrderSide.Sell, userId, symbol.Name,
+                        var orderIds = await _order.CreateOneCancelsOtherOrder(_configuration, OrderSide.Sell, userId, symbol.Name,
                             dayBlock.NumShares, executedBuyPrice + symbol.TakeProfitOffset, executedBuyPrice - symbol.StopLossOffset);
                         dayBlock.ExternalSellOrderId = orderIds.TakeProfitId;
                         dayBlock.ExternalStopLossOrderId = orderIds.StopLossOrderId;
@@ -113,7 +120,7 @@ namespace TradingService.TradeManagement.Day
                 {
                     try
                     {
-                        var orderIds = await Order.CreateOneCancelsOtherOrder(_configuration, OrderSide.Buy, userId, symbol.Name,
+                        var orderIds = await _order.CreateOneCancelsOtherOrder(_configuration, OrderSide.Buy, userId, symbol.Name,
                             dayBlock.NumShares, executedSellPrice - symbol.TakeProfitOffset, executedSellPrice + symbol.StopLossOffset);
                         dayBlock.ExternalBuyOrderId = orderIds.TakeProfitId;
                         dayBlock.ExternalStopLossOrderId = orderIds.StopLossOrderId;
@@ -141,13 +148,13 @@ namespace TradingService.TradeManagement.Day
             }
         }
 
-        private async Task<ArchiveBlock> GetArchiveDayBlockIfExists(string userId, Guid externalOrderId)
+        private async Task<ClosedBlock> GetArchiveDayBlockIfExists(string userId, Guid externalOrderId)
         {
             // Read user blocks from Cosmos DB
-            var archiveDayBlock = new List<ArchiveBlock>();
+            var archiveDayBlock = new List<ClosedBlock>();
             try
             {
-                using var setIterator = _containerBlocksDayArchive.GetItemLinqQueryable<ArchiveBlock>()
+                using var setIterator = _containerBlocksDayArchive.GetItemLinqQueryable<ClosedBlock>()
                     .Where(b => b.UserId == userId && (b.ExternalBuyOrderId == externalOrderId || b.ExternalSellOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId))
                     .ToFeedIterator();
                 while (setIterator.HasMoreResults)

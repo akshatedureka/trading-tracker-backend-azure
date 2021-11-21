@@ -14,11 +14,20 @@ using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement.Day
 {
-    public static class GetBlockArchivesDay
+    public class GetBlockArchivesDay
     {
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+
+        public GetBlockArchivesDay(IRepository repository, IQueries queries)
+        {
+            _repository = repository;
+            _queries = queries;
+        }
+
         [FunctionName("GetBlockArchivesDay")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to get block archives.");
@@ -37,7 +46,7 @@ namespace TradingService.TradeManagement.Day
             // Read block archives from Cosmos DB
             try
             {
-                var containerForBlockArchive = await Repository.GetContainer(containerIdForBlockArchive);
+                var containerForBlockArchive = await _repository.GetContainer(containerIdForBlockArchive);
                 using var setIterator = containerForBlockArchive.GetItemLinqQueryable<Block>().ToFeedIterator();
                 while (setIterator.HasMoreResults)
                 {

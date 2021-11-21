@@ -20,10 +20,14 @@ namespace TradingService.TradeManagement.Day
     public class CreateDayTradeMarketOrders
     {
         private readonly IConfiguration _configuration;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public CreateDayTradeMarketOrders(IConfiguration configuration)
+        public CreateDayTradeMarketOrders(IConfiguration configuration, IRepository repository, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _order = order;
         }
 
         private static readonly string containerSymbolsId = "Symbols";
@@ -43,8 +47,8 @@ namespace TradingService.TradeManagement.Day
 
             _log.LogInformation($"Function triggered to process day trade market orders for user {userId}.");
 
-            _containerSymbols = await Repository.GetContainer(containerSymbolsId);
-            _containerBlocksDayArchive = await Repository.GetContainer(containerBlocksDayArchiveId);
+            _containerSymbols = await _repository.GetContainer(containerSymbolsId);
+            _containerBlocksDayArchive = await _repository.GetContainer(containerBlocksDayArchiveId);
 
             // Get symbols that have day trading active
             var symbols = new List<Symbol>();
@@ -67,18 +71,18 @@ namespace TradingService.TradeManagement.Day
             }
 
             // Get open orders
-            var openOrders = await Order.GetOpenOrders(_configuration, userId);
+            var openOrders = await _order.GetOpenOrders(_configuration, userId);
             var openOrderSymbols = openOrders.Select(order => order.Symbol).ToList();
 
             // Get open positions
-            var openPositions = await Order.GetOpenPositions(_configuration, userId);
+            var openPositions = await _order.GetOpenPositions(_configuration, userId);
             var openPositionSymbols = openPositions.Select(position => position.Symbol).ToList();
 
             // Loop through symbols and create buy / sell orders for previous day close price, if no order created yet and no open positions
             //ToDo: If trading is true on symbol object - update swing trading to just have a trading property rather than day trading and swing trading properties
             foreach (var symbol in symbols)
             {
-                var currentPrice = await Order.GetCurrentPrice(_configuration, userId, symbol.Name);
+                var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol.Name);
 
                 //if (currentPrice > 45) continue;
 
@@ -86,7 +90,7 @@ namespace TradingService.TradeManagement.Day
 
                 if (openPositionSymbols.Contains(symbol.Name)) continue;
 
-                var archiveBlock = new ArchiveBlock()
+                var archiveBlock = new ClosedBlock()
                 {
                     Id = Guid.NewGuid().ToString(),
                     DateCreated = DateTime.Now,
@@ -101,7 +105,7 @@ namespace TradingService.TradeManagement.Day
                     try
                     {
                         // Create buy market order
-                        var orderId = await Order.CreateMarketOrder(_configuration, OrderSide.Buy, userId, symbol.Name, symbol.NumShares);
+                        var orderId = await _order.CreateMarketOrder(_configuration, OrderSide.Buy, userId, symbol.Name, symbol.NumShares);
                         
                         archiveBlock.ExternalBuyOrderId = orderId;
                         archiveBlock.IsShort = false;
@@ -119,7 +123,7 @@ namespace TradingService.TradeManagement.Day
                     // Create sell market order
                     try
                     {
-                        var orderId = await Order.CreateMarketOrder(_configuration, OrderSide.Sell, userId, symbol.Name, symbol.NumShares);
+                        var orderId = await _order.CreateMarketOrder(_configuration, OrderSide.Sell, userId, symbol.Name, symbol.NumShares);
 
                         archiveBlock.ExternalSellOrderId = orderId;
                         archiveBlock.IsShort = true;

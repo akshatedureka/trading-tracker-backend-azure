@@ -21,15 +21,21 @@ namespace TradingService.TradeManagement.Day
     public class GetTradingDataDay
     {
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public GetTradingDataDay(IConfiguration configuration)
+        public GetTradingDataDay(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         [FunctionName("GetTradingDataDay")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request to get symbols.");
@@ -40,8 +46,8 @@ namespace TradingService.TradeManagement.Day
             const string containerIdForSymbols = "Symbols";
             const string containerIdForBlockDayArchive = "BlocksDayArchive";
 
-            var containerForSymbols = await Repository.GetContainer(containerIdForSymbols);
-            var containerForDayBlockArchive = await Repository.GetContainer(containerIdForBlockDayArchive);
+            var containerForSymbols = await _repository.GetContainer(containerIdForSymbols);
+            var containerForDayBlockArchive = await _repository.GetContainer(containerIdForBlockDayArchive);
 
             var symbols = new List<Symbol>();
 
@@ -74,13 +80,13 @@ namespace TradingService.TradeManagement.Day
             var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
 
             // Add in archive data
-            var archiveBlocks = new List<ArchiveBlock>();
+            var archiveBlocks = new List<ClosedBlock>();
 
             // Read archive blocks from Cosmos DB
             try
             {
                 archiveBlocks = containerForDayBlockArchive
-                    .GetItemLinqQueryable<ArchiveBlock>(allowSynchronousQueryExecution: true)
+                    .GetItemLinqQueryable<ClosedBlock>(allowSynchronousQueryExecution: true)
                     .Where(b => b.UserId == userId).ToList();
             }
             catch (CosmosException ex)
@@ -104,7 +110,7 @@ namespace TradingService.TradeManagement.Day
             }
 
             // Add in position data
-            var positions = await Order.GetOpenPositions(_configuration, userId);
+            var positions = await _order.GetOpenPositions(_configuration, userId);
 
             foreach (var position in positions)
             {

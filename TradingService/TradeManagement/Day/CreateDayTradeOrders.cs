@@ -18,10 +18,16 @@ namespace TradingService.TradeManagement.Day
     public class CreateDayTradeOrders
     {
         private readonly IConfiguration _configuration;
+        private readonly IQueries _queries;
+        private readonly IRepository _repository;
+        private readonly ITradeOrder _order;
 
-        public CreateDayTradeOrders(IConfiguration configuration)
+        public CreateDayTradeOrders(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
+            _repository = repository;
+            _queries = queries;
+            _order = order;
         }
 
         private static readonly string containerSymbolsId = "Symbols";
@@ -39,8 +45,8 @@ namespace TradingService.TradeManagement.Day
 
             _log.LogInformation($"Function triggered to process day trade orders for user {userId}.");
 
-            _containerSymbols = await Repository.GetContainer(containerSymbolsId);
-            _containerBlocksDayArchive = await Repository.GetContainer(containerBlocksDayArchiveId);
+            _containerSymbols = await _repository.GetContainer(containerSymbolsId);
+            _containerBlocksDayArchive = await _repository.GetContainer(containerBlocksDayArchiveId);
 
             // Get symbols that have day trading active
             var symbols = new List<Symbol>();
@@ -63,18 +69,18 @@ namespace TradingService.TradeManagement.Day
             }
 
             // Get open orders
-            var openOrders = await Order.GetOpenOrders(_configuration, userId);
+            var openOrders = await _order.GetOpenOrders(_configuration, userId);
             var openOrderSymbols = openOrders.Select(order => order.Symbol).ToList();
 
             // Get open positions
-            var openPositions = await Order.GetOpenPositions(_configuration, userId);
+            var openPositions = await _order.GetOpenPositions(_configuration, userId);
             var openPositionSymbols = openPositions.Select(position => position.Symbol).ToList();
 
             // Loop through symbols and create buy / sell orders for previous day close price, if no order created yet and no open positions
             foreach (var symbol in symbols)
             {
-                var previousDayClose = await Order.GetPreviousDayClose(_configuration, userId, symbol.Name);
-                var currentPrice = await Order.GetCurrentPrice(_configuration, userId, symbol.Name);
+                var previousDayClose = await _order.GetPreviousDayClose(_configuration, userId, symbol.Name);
+                var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol.Name);
                 var longLimitPrice = previousDayClose + 0.05M;
                 var shortLimitPrice = previousDayClose - 0.05M;
 
@@ -84,7 +90,7 @@ namespace TradingService.TradeManagement.Day
 
                 if (openPositionSymbols.Contains(symbol.Name)) continue;
 
-                var archiveBlock = new ArchiveBlock()
+                var archiveBlock = new ClosedBlock()
                 {
                     Id = Guid.NewGuid().ToString(),
                     DateCreated = DateTime.Now,
@@ -99,7 +105,7 @@ namespace TradingService.TradeManagement.Day
                     try
                     {
                         // Create buy limit order for previous day close
-                        var orderId = await Order.CreateStopLimitOrder(_configuration, OrderSide.Buy, userId, symbol.Name, 100, previousDayClose,
+                        var orderId = await _order.CreateStopLimitOrder(_configuration, OrderSide.Buy, userId, symbol.Name, 100, previousDayClose,
                             longLimitPrice);
 
                         archiveBlock.ExternalBuyOrderId = orderId;
@@ -118,7 +124,7 @@ namespace TradingService.TradeManagement.Day
                     // Create sell limit order for previous day close
                     try
                     {
-                        var orderId = await Order.CreateStopLimitOrder(_configuration, OrderSide.Sell, userId, symbol.Name, 100, previousDayClose,
+                        var orderId = await _order.CreateStopLimitOrder(_configuration, OrderSide.Sell, userId, symbol.Name, 100, previousDayClose,
                             shortLimitPrice);
                         archiveBlock.ExternalSellOrderId = orderId;
                         archiveBlock.IsShort = true;
