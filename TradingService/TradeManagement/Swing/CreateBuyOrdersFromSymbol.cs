@@ -33,7 +33,9 @@ namespace TradingService.TradeManagement.Swing
         [FunctionName("CreateBuyOrdersFromSymbol")]
         public async Task Run([QueueTrigger("swingbuyorderqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-            var message = JsonConvert.DeserializeObject<OrderCreationMessage>(myQueueItem);
+            var message = JsonConvert.DeserializeObject<OrderMessage>(myQueueItem);
+            if (!message.IsOrderCreation)
+                return;
             var userId = message.UserId;
             var symbol = message.Symbol;
 
@@ -98,7 +100,7 @@ namespace TradingService.TradeManagement.Swing
                 if (block.BuyOrderCreated) continue; // Order already exists
 
                 var orderIds = await _order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created bracket order for user {userBlock.UserId} symbol {userBlock.Symbol} for limit price {block.BuyOrderPrice}.");
+                log.LogInformation($"Created initial buy bracket orders for for user {userBlock.UserId} symbol {userBlock.Symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
 
                 //ToDo: Refactor to combine with blocks below
                 // Update Cosmos DB item
@@ -111,8 +113,8 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.BuyOrderCreated = true;
 
                 // Replace the item with the updated content
-                var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders.");
+                //var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
             }
 
             // Two blocks below
@@ -123,7 +125,7 @@ namespace TradingService.TradeManagement.Swing
                 if (block.BuyOrderCreated) continue; // Order already exists
 
                 var orderIds = await _order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created bracket order for user {userBlock.UserId} symbol {userBlock.Symbol} for limit price {block.BuyOrderPrice}.");
+                log.LogInformation($"Created initial buy bracket orders for for user {userBlock.UserId} symbol {userBlock.Symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
 
                 var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 
@@ -134,9 +136,12 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.BuyOrderCreated = true;
 
                 // Replace the item with the updated content
-                var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders");
+                //var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
             }
+
+            //Do a single replace here...
+            var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
         }
 
         private List<Block> GetBlocksAboveCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)

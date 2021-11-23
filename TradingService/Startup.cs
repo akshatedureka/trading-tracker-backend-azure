@@ -19,8 +19,8 @@ namespace TradingService
 
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddScoped<IRepository, Repository>();
-            builder.Services.AddScoped<IQueries, Queries>();
+            builder.Services.AddSingleton<IRepository, Repository>();
+            builder.Services.AddSingleton<IQueries, Queries>();
             builder.Services.AddScoped<ITradeOrder, TradeOrder>();
 
         }

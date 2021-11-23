@@ -33,7 +33,9 @@ namespace TradingService.TradeManagement.Swing
         [FunctionName("CreateSellOrdersFromSymbol")]
         public async Task Run([QueueTrigger("swingsellorderqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
-            var message = JsonConvert.DeserializeObject<OrderCreationMessage>(myQueueItem);
+            var message = JsonConvert.DeserializeObject<OrderMessage>(myQueueItem);
+            if (!message.IsOrderCreation)
+                return;
             var userId = message.UserId;
             var symbol = message.Symbol;
 
@@ -98,7 +100,7 @@ namespace TradingService.TradeManagement.Swing
                 if (block.SellOrderCreated) continue; // Order already exists
 
                 var orderIds = await _order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}.");
+                log.LogInformation($"Created initial sell bracket orders for user {userBlock.UserId} symbol {userBlock.Symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}  at {DateTime.Now}.");
 
                 //ToDo: Refactor to combine with blocks below
                 // Update Cosmos DB item
@@ -111,8 +113,8 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.SellOrderCreated = true;
 
                 // Replace the item with the updated content
-                var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders.");
+                //var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
             }
 
             // Two blocks above
@@ -123,7 +125,7 @@ namespace TradingService.TradeManagement.Swing
                 if (block.SellOrderCreated) continue; // Order already exists
 
                 var orderIds = await _order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userBlock.UserId, userBlock.Symbol, userBlock.NumShares, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created initial sell bracket orders for symbol {userBlock.Symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}.");
+                log.LogInformation($"Created initial sell bracket orders for user {userBlock.UserId} symbol {userBlock.Symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
 
                 var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.Id == block.Id);
 
@@ -134,9 +136,11 @@ namespace TradingService.TradeManagement.Swing
                 blockToUpdate.SellOrderCreated = true;
 
                 // replace the item with the updated content
-                var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders.");
+                //var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
             }
+
+            var blockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
         }
 
         private List<Block> GetBlocksAboveCurrentPriceByPercentage(List<Block> blocks, decimal currentPrice, decimal percentage)

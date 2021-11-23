@@ -12,27 +12,25 @@ namespace TradeUpdateService
     public class UpdateBlockRange : IUpdateBlockRange
     {
         private readonly IConfiguration _configuration;
+        private readonly CosmosClient _client;
 
         public UpdateBlockRange(IConfiguration configuration)
         {
             _configuration = configuration;
+            var endpointUri = _configuration.GetValue<string>("EndPointUri"); // The Azure Cosmos DB endpoint
+            var primaryKey = _configuration.GetValue<string>("PrimaryKey"); // The primary key for the Azure Cosmos account
+
+            // Connect to Cosmos DB using endpoint
+            _client = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
         }
 
         public async Task<bool> CreateUpdateBlockRangeMessage()
         {
-            // The Azure Cosmos DB endpoint for running this sample.
-            var endpointUri = _configuration.GetValue<string>("EndPointUri");
-
-            // The primary key for the Azure Cosmos account.
-            var primaryKey = _configuration.GetValue<string>("PrimaryKey");
-
-            // Connect to Cosmos DB using endpoint
-            var cosmosClient = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = "TradingService" });
             const string databaseId = "TMS";
             const string containerId = "Accounts";
             const string containerSymbolsId = "Symbols";
 
-            var database = (Database)await cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId);
+            var database = (Database)await _client.CreateDatabaseIfNotExistsAsync(databaseId);
             var container = (Container)await database.CreateContainerIfNotExistsAsync(containerId, "/userId");
             var containerSymbols = (Container)await database.CreateContainerIfNotExistsAsync(containerSymbolsId, "/userId");
 

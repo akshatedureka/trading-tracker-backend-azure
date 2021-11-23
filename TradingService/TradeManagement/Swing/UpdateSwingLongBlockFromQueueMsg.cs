@@ -39,7 +39,9 @@ namespace TradingService.TradeManagement.Swing
 
             _container = await _repository.GetContainer(containerId);
 
-            var orderUpdateMessage = JsonConvert.DeserializeObject<OrderUpdateMessage>(myQueueItem);
+            var orderUpdateMessage = JsonConvert.DeserializeObject<OrderMessage>(myQueueItem);
+            if (orderUpdateMessage.IsOrderCreation)
+                return;
             _log.LogInformation($"Update swing block from queue msg triggered for user {orderUpdateMessage.UserId}, symbol {orderUpdateMessage.Symbol}, external order id {orderUpdateMessage.OrderId}.");
 
             if (orderUpdateMessage.OrderSide == OrderSide.Buy)
@@ -91,7 +93,6 @@ namespace TradingService.TradeManagement.Swing
             // Sell order has been executed, create new buy order in Alpaca, close and reset block
             _log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
-            // Get swing trade blocks
             // Get swing trade block
             var userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
 
@@ -102,7 +103,7 @@ namespace TradingService.TradeManagement.Swing
             }
 
             // Update block designating buy order has been executed
-            var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
+            var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);
 
             if (blockToUpdate != null)
             {
@@ -116,7 +117,7 @@ namespace TradingService.TradeManagement.Swing
                     await Task.Delay(1000); // Wait one second in between attempts
                     _log.LogError($"Error while updating sell order executed. Buy order has not had BuyOrderFilled flag set to true yet. Retry attempt {retryAttemptCount}");
                     userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
-                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId);
+                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);
                     retryAttemptCount += 1;
                 }
 
@@ -160,6 +161,7 @@ namespace TradingService.TradeManagement.Swing
             else
             {
                 _log.LogError($"Could not find block for sell for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
+                throw new Exception("Could not find block.");
             }
         }
     }

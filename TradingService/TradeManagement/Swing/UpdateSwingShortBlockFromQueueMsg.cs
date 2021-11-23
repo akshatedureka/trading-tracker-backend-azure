@@ -38,7 +38,9 @@ namespace TradingService.TradeManagement.Swing
             
             _container = await _repository.GetContainer(containerId);
 
-            var orderUpdateMessage = JsonConvert.DeserializeObject<OrderUpdateMessage>(myQueueItem);
+            var orderUpdateMessage = JsonConvert.DeserializeObject<OrderMessage>(myQueueItem);
+            if (orderUpdateMessage.IsOrderCreation)
+                return;
             _log.LogInformation($"Update swing short block from queue msg triggered for user {orderUpdateMessage.UserId}, symbol {orderUpdateMessage.Symbol}, external order id {orderUpdateMessage.OrderId}.");
 
             if (orderUpdateMessage.OrderSide == OrderSide.Buy)
@@ -99,7 +101,7 @@ namespace TradingService.TradeManagement.Swing
                 return;
             }
 
-            var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
+            var blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);
 
             if (blockToUpdate != null)
             {
@@ -113,7 +115,7 @@ namespace TradingService.TradeManagement.Swing
                     await Task.Delay(1000); // Wait one second in between attempts
                     _log.LogError($"Error while updating buy order executed. Sell order has not had SellOrderFilled flag set to true yet. Retry attempt {retryAttemptCount}");
                     userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
-                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
+                    blockToUpdate = userBlock.Blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);
                     retryAttemptCount += 1;
                 }
 
@@ -152,6 +154,7 @@ namespace TradingService.TradeManagement.Swing
             else
             {
                 _log.LogError($"Could not find block for buy for user id {userId}, symbol {symbol}, external order id {externalOrderId} at: {DateTimeOffset.Now}.");
+                throw new Exception("Could not find block.");
             }
         }
     }

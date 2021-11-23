@@ -102,8 +102,8 @@ namespace TradeUpdateService
                         try
                         {
                             var executedPrice = (decimal)trade.Price;
-                            var msg = new OrderUpdateMessage
-                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice };
+                            var msg = new OrderMessage
+                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice, IsOrderCreation = false };
 
                             // Send a message to the queue
                             _queueClient.SendMessage(Base64Encode(JsonConvert.SerializeObject(msg)));
@@ -119,8 +119,8 @@ namespace TradeUpdateService
                         try
                         {
                             var executedPrice = (decimal)trade.Price;
-                            var msg = new OrderUpdateMessage
-                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice };
+                            var msg = new OrderMessage
+                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice, IsOrderCreation = false };
 
                             // Send a message to the queue
                             _queueClient.SendMessage(Base64Encode(JsonConvert.SerializeObject(msg)));
