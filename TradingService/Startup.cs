@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
+using TradingService.TradeManagement.Swing.BusinessLogic;
 
 [assembly: FunctionsStartup(typeof(TradingService.Startup))]
 
@@ -22,7 +23,7 @@ namespace TradingService
             builder.Services.AddSingleton<IRepository, Repository>();
             builder.Services.AddSingleton<IQueries, Queries>();
             builder.Services.AddScoped<ITradeOrder, TradeOrder>();
-
+            builder.Services.AddScoped<ITradeManagementHelper, TradeManagementHelper>();
         }
     }
 }

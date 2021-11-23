@@ -41,8 +41,8 @@ namespace TradeUpdateService
             var connectionString = _configuration.GetValue<string>("AzureWebJobsStorageRemote");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
-            var queueClientLong = new QueueClient(connectionString, "swingbuyorderqueue");
-            var queueClientShort = new QueueClient(connectionString, "swingsellorderqueue");
+            var queueClientLong = new QueueClient(connectionString, "swinglongorderqueue");
+            var queueClientShort = new QueueClient(connectionString, "swingshortorderqueue");
             await queueClientLong.CreateIfNotExistsAsync();
             await queueClientShort.CreateIfNotExistsAsync();
 
@@ -65,7 +65,7 @@ namespace TradeUpdateService
                         {
                             UserId = account.UserId,
                             Symbol = symbol.Name,
-                            IsOrderCreation = true
+                            OrderMessageType = OrderMessageTypes.Create
                         };
 
                         if (account.AccountType == AccountTypes.SwingLong)

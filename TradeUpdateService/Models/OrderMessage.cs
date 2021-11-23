@@ -1,5 +1,6 @@
 ﻿using System;
 using Alpaca.Markets;
+using TradeUpdateService.Enums;
 
 namespace TradeUpdateService.Models
 {
@@ -10,6 +11,6 @@ namespace TradeUpdateService.Models
         public Guid OrderId { get; set; }
         public OrderSide OrderSide { get; set; }
         public decimal ExecutedPrice { get; set; }
-        public bool IsOrderCreation { get; set; }
+        public OrderMessageTypes OrderMessageType { get; set; }
     }
 }

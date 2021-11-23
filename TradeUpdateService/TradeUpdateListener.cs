@@ -34,10 +34,10 @@ namespace TradeUpdateService
             switch (accountType)
             {
                 case AccountTypes.SwingLong:
-                    queueName = "tradeupdatequeueswinglong";
+                    queueName = "swinglongorderqueue";
                     break;
                 case AccountTypes.SwingShort:
-                    queueName = "tradeupdatequeueswingshort";
+                    queueName = "swingshortorderqueue";
                     break;
                 case AccountTypes.DayLong:
                     queueName = "tradeupdatequeuedaymarket";
@@ -103,7 +103,7 @@ namespace TradeUpdateService
                         {
                             var executedPrice = (decimal)trade.Price;
                             var msg = new OrderMessage
-                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice, IsOrderCreation = false };
+                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice, OrderMessageType = OrderMessageTypes.Update };
 
                             // Send a message to the queue
                             _queueClient.SendMessage(Base64Encode(JsonConvert.SerializeObject(msg)));
@@ -120,7 +120,7 @@ namespace TradeUpdateService
                         {
                             var executedPrice = (decimal)trade.Price;
                             var msg = new OrderMessage
-                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice, IsOrderCreation = false };
+                            { UserId = _userId, Symbol = symbol, OrderId = orderId, OrderSide = orderSide, ExecutedPrice = executedPrice, OrderMessageType = OrderMessageTypes.Update };
 
                             // Send a message to the queue
                             _queueClient.SendMessage(Base64Encode(JsonConvert.SerializeObject(msg)));

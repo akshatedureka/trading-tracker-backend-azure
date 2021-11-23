@@ -19,6 +19,18 @@ namespace TradingService.TradeManagement.Swing.Common
             var queueClient = new QueueClient(connectionString, queueName);
             queueClient.CreateIfNotExists();
 
+            if (block.BuyOrderFilledPrice == 0)
+            {
+                block.BuyOrderFilledPrice = block.BuyOrderPrice;
+                log.LogError($"Buy order filled price was not set for user {userBlock.UserId}, symbol {userBlock.Symbol}, block id {block.Id} at {DateTimeOffset.Now}.");
+            }
+
+            if (block.SellOrderFilledPrice == 0)
+            {
+                block.SellOrderFilledPrice = block.SellOrderPrice;
+                log.LogError($"Sell order filled price was not set for user {userBlock.UserId}, symbol {userBlock.Symbol}, block id {block.Id} at {DateTimeOffset.Now}.");
+            }
+
             var msg = new ClosedBlockMessage()
             {
                 BlockId = block.Id,

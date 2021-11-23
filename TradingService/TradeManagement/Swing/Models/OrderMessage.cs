@@ -1,5 +1,6 @@
 ﻿using System;
 using Alpaca.Markets;
+using TradingService.TradeManagement.Swing.Enums;
 
 namespace TradingService.TradeManagement.Swing.Models
 {
@@ -10,6 +11,6 @@ namespace TradingService.TradeManagement.Swing.Models
         public Guid OrderId { get; set; }
         public OrderSide OrderSide { get; set; }
         public decimal ExecutedPrice { get; set; }
-        public bool IsOrderCreation { get; set; }
+        public OrderMessageTypes OrderMessageType { get; set; }
     }
 }
