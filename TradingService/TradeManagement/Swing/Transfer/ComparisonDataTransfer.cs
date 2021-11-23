@@ -6,6 +6,8 @@ namespace TradingService.TradeManagement.Swing.Transfer
 {
     public class ComparisonDataTransfer
     {
+        [JsonProperty(PropertyName = "symbol")]
+        public string Symbol { get; set; }
         [JsonProperty(PropertyName = "blockId")]
         public string BlockId { get; set; }
         [JsonProperty(PropertyName = "externalBuyOrderId")]
@@ -18,6 +20,8 @@ namespace TradingService.TradeManagement.Swing.Transfer
         public bool BuyOrderCreated { get; set; }
         [JsonProperty(PropertyName = "buyOrderFilled")]
         public bool BuyOrderFilled { get; set; }
+        [JsonProperty(PropertyName = "buyOrderPrice")]
+        public decimal BuyOrderPrice { get; set; }
         [JsonProperty(PropertyName = "buyOrderFilledPrice")]
         public decimal BuyOrderFilledPrice { get; set; }
         [JsonProperty(PropertyName = "dateBuyOrderFilled")]
@@ -26,6 +30,8 @@ namespace TradingService.TradeManagement.Swing.Transfer
         public bool SellOrderCreated { get; set; }
         [JsonProperty(PropertyName = "sellOrderFilled")]
         public bool SellOrderFilled { get; set; }
+        [JsonProperty(PropertyName = "sellOrderPrice")]
+        public decimal SellOrderPrice { get; set; }
         [JsonProperty(PropertyName = "sellOrderFilledPrice")]
         public decimal SellOrderFilledPrice { get; set; }
         [JsonProperty(PropertyName = "dateSellOrderFilled")]

@@ -14,6 +14,7 @@ using Alpaca.Markets;
 using TradingService.TradeManagement.Swing.Transfer;
 using Microsoft.Azure.Cosmos;
 using System;
+using TradingService.AccountManagement.Enums;
 
 namespace TradingService.TradeManagement.Swing
 {
@@ -44,6 +45,8 @@ namespace TradingService.TradeManagement.Swing
             {
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
+
+            var accountType = await _queries.GetAccountTypeByUserId(userId);
 
             // The name of the database and container we will create
             const string containerIdForBlocks = "Blocks";
@@ -80,15 +83,27 @@ namespace TradingService.TradeManagement.Swing
             {
                 // Get blocks with open buy or sell orders
                 var symbol = userBlock.Symbol;
-                var openBuyOrderBlocks = userBlock.Blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated);
-                var openSellOrderBlocks = userBlock.Blocks.Where(b => b.SellOrderCreated);
+                var openBuyOrderBlocks = new List<Block>();
+                var openSellOrderBlocks = new List<Block>();
+
+                if (accountType == AccountTypes.SwingLong)
+                {
+                    openBuyOrderBlocks = userBlock.Blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated).ToList();
+                    openSellOrderBlocks = userBlock.Blocks.Where(b => b.SellOrderCreated).ToList();
+                }
+                else
+                {
+                    openBuyOrderBlocks = userBlock.Blocks.Where(b => b.BuyOrderCreated).ToList();
+                    openSellOrderBlocks = userBlock.Blocks.Where(b => b.SellOrderCreated && !b.BuyOrderCreated).ToList();
+                }
+
                 var openBuyOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol && o.OrderSide == OrderSide.Buy);
                 var openSellOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol && o.OrderSide == OrderSide.Sell);
 
                 // Cycle through open buy order blocks and see if buy order exists in external system
                 foreach (var openBuyOrderBlock in openBuyOrderBlocks)
                 {
-                    var comparisonBlock = CreateComparisonDataFromBlock(openBuyOrderBlock);
+                    var comparisonBlock = CreateComparisonDataFromBlock(symbol, openBuyOrderBlock);
                     var externalBuyOrderId = openBuyOrderBlock.ExternalBuyOrderId;
                     foreach (var buyOrder in openBuyOrdersForSymbol)
                     {
@@ -106,7 +121,7 @@ namespace TradingService.TradeManagement.Swing
                 // Cycle through open sell order blocks and see if a sell order exists in external system
                 foreach (var openSellOrderBlock in openSellOrderBlocks)
                 {
-                    var comparisonBlock = CreateComparisonDataFromBlock(openSellOrderBlock);
+                    var comparisonBlock = CreateComparisonDataFromBlock(symbol, openSellOrderBlock);
                     var externalSellOrderId = openSellOrderBlock.ExternalSellOrderId;
                     foreach (var sellOrder in openSellOrdersForSymbol)
                     {
@@ -125,17 +140,20 @@ namespace TradingService.TradeManagement.Swing
             return new OkObjectResult(comparisonData);
         }
 
-        private ComparisonDataTransfer CreateComparisonDataFromBlock(Block block)
+        private ComparisonDataTransfer CreateComparisonDataFromBlock(string symbol, Block block)
         {
             return new ComparisonDataTransfer
             {
+                Symbol = symbol,
                 BlockId = block.Id,
                 BuyOrderCreated = block.BuyOrderCreated,
                 BuyOrderFilled = block.BuyOrderFilled,
+                BuyOrderPrice = block.BuyOrderPrice,
                 BuyOrderFilledPrice = block.BuyOrderFilledPrice,
                 DateBuyOrderFilled = block.DateBuyOrderFilled,
                 SellOrderCreated = block.SellOrderCreated,
                 SellOrderFilled = block.SellOrderFilled,
+                SellOrderPrice = block.SellOrderPrice,
                 SellOrderFilledPrice = block.SellOrderFilledPrice,
                 DateSellOrderFilled = block.DateSellOrderFilled,
                 ExternalBuyOrderId = block.ExternalBuyOrderId,
