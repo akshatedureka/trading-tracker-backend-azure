@@ -60,9 +60,7 @@ namespace TradingService.BlockManagement
             }
 
             // Get current blocks
-            var userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
-            var blocks = userBlock.Blocks;
-            var blocksToRemove = new List<Block>();
+            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
             // Get new blocks ToDo: Move this to common module
             var blockPrices = GenerateBlockPrices(accountType, currentPrice, ladder.BuyPercentage, ladder.SellPercentage, ladder.StopLossPercentage).OrderBy(p => p.BuyPrice);
@@ -77,7 +75,7 @@ namespace TradingService.BlockManagement
             {
                 if (block.BuyOrderPrice < minBlockPriceNew && !block.BuyOrderCreated && !block.SellOrderCreated)
                 {
-                    blocksToRemove.Add(block);
+                    await _queries.DeleteBlock(block);
                 }
             }
 
@@ -86,11 +84,9 @@ namespace TradingService.BlockManagement
             {
                 if (block.BuyOrderPrice > maxBlockPriceNew && !block.BuyOrderCreated && !block.SellOrderCreated)
                 {
-                    blocksToRemove.Add(block);
+                    await _queries.DeleteBlock(block);
                 }
             }
-
-            blocks.RemoveAll(blocksToRemove.Contains);
 
             // Add new low blocks
             foreach (var blockPrice in blockPrices)
@@ -101,12 +97,15 @@ namespace TradingService.BlockManagement
                     {
                         Id = Guid.NewGuid().ToString(),
                         DateCreated = DateTime.Now,
+                        UserId = userId,
+                        Symbol = ladder.Symbol,
+                        NumShares = ladder.InitialNumShares,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
                     };
 
-                    blocks.Add(block);
+                    await _queries.CreateBlock(block);
                 }
             }
 
@@ -119,16 +118,17 @@ namespace TradingService.BlockManagement
                     {
                         Id = Guid.NewGuid().ToString(),
                         DateCreated = DateTime.Now,
+                        UserId = userId,
+                        Symbol = ladder.Symbol,
+                        NumShares = ladder.InitialNumShares,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
                     };
 
-                    blocks.Add(block);
+                    await _queries.CreateBlock(block);
                 }
             }
-
-            await _queries.UpdateUserBlock(userBlock);
         }
 
         private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)

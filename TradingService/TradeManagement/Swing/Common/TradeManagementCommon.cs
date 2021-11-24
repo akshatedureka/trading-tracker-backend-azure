@@ -11,32 +11,19 @@ namespace TradingService.TradeManagement.Swing.Common
 {
     public class TradeManagementCommon
     {
-        public static async Task CreateClosedBlockMsg(ILogger log, IConfiguration config, UserBlock userBlock, Block block)
+        public static async Task CreateClosedBlockMsg(ILogger log, IConfiguration config, Block block)
         {
             // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
             var queueName = "closeswingblockqueue";
             var queueClient = new QueueClient(connectionString, queueName);
             queueClient.CreateIfNotExists();
-
-            if (block.BuyOrderFilledPrice == 0)
-            {
-                block.BuyOrderFilledPrice = block.BuyOrderPrice;
-                log.LogError($"Buy order filled price was not set for user {userBlock.UserId}, symbol {userBlock.Symbol}, block id {block.Id} at {DateTimeOffset.Now}.");
-            }
-
-            if (block.SellOrderFilledPrice == 0)
-            {
-                block.SellOrderFilledPrice = block.SellOrderPrice;
-                log.LogError($"Sell order filled price was not set for user {userBlock.UserId}, symbol {userBlock.Symbol}, block id {block.Id} at {DateTimeOffset.Now}.");
-            }
-
             var msg = new ClosedBlockMessage()
             {
                 BlockId = block.Id,
-                UserId = userBlock.UserId,
-                Symbol = userBlock.Symbol,
-                NumShares = userBlock.NumShares,
+                UserId = block.UserId,
+                Symbol = block.Symbol,
+                NumShares = block.NumShares,
                 ExternalBuyOrderId = block.ExternalBuyOrderId,
                 ExternalSellOrderId = block.ExternalSellOrderId,
                 ExternalStopLossOrderId = block.ExternalStopLossOrderId,
@@ -47,26 +34,25 @@ namespace TradingService.TradeManagement.Swing.Common
             };
 
             await queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));
-            log.LogInformation($"Created closed block queue msg for user {userBlock.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
+            log.LogInformation($"Created closed block queue msg for user {block.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
         }
 
-        public static async Task CreateResetBlockMsg(ILogger log, IConfiguration config, UserBlock userBlock, Block block)
+        public static async Task CreateResetBlockMsg(ILogger log, IConfiguration config, Block block)
         {
             // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
             var queueName = "resetswingblockqueue";
             var queueClient = new QueueClient(connectionString, queueName);
             queueClient.CreateIfNotExists();
-
             var msg = new ResetBlockMessage()
             {
                 BlockId = block.Id,
-                UserId = userBlock.UserId,
-                Symbol = userBlock.Symbol,
+                UserId = block.UserId,
+                Symbol = block.Symbol
             };
 
             await queueClient.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));
-            log.LogInformation($"Created reset block queue msg for user {userBlock.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
+            log.LogInformation($"Created reset block queue msg for user {block.UserId}, block id {block.Id} at: { DateTimeOffset.Now}.");
         }
 
         private static string Base64Encode(string plainText)

@@ -15,11 +15,9 @@ namespace TradingService.BlockManagement
     public class GetBlocksFromLadder
     {
         private readonly IQueries _queries;
-        private readonly IRepository _repository;
 
         public GetBlocksFromLadder(IRepository repository, IQueries queries)
         {
-            _repository = repository;
             _queries = queries;
         }
 
@@ -39,16 +37,12 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string containerId = "Blocks";
 
             // Read blocks from Cosmos DB
             try
             {
-                var container = await _repository.GetContainer(containerId);
-                var userBlockResponse = container
-                    .GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(b => b.UserId == userId && b.Symbol == symbol).ToList().FirstOrDefault();
-                return userBlockResponse != null ? new OkObjectResult(userBlockResponse.Blocks) : new OkObjectResult("No blocks found for user and symbol.");
+                var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+                return blocks != null ? new OkObjectResult(blocks) : new OkObjectResult("No blocks found for user and symbol.");
             }
             catch (CosmosException ex)
             {

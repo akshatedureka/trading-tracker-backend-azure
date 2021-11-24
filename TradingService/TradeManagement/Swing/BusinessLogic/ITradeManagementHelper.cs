@@ -13,9 +13,9 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
         public List<Block> GetBlocksWithoutOpenOrders();
         public List<IOrder> GetOrdersWithoutOpenBlocks();
 
-        public Task CreateLongBracketOrdersBasedOnCurrentPrice(UserBlock userBlock, ILogger log);
+        public Task CreateLongBracketOrdersBasedOnCurrentPrice(List<Block> blocks, string userId, string symbol, ILogger log);
 
-        public Task CreateShortBracketOrdersBasedOnCurrentPrice(UserBlock userBlock, ILogger log);
+        public Task CreateShortBracketOrdersBasedOnCurrentPrice(List<Block> blocks, string userId, string symbol, ILogger log);
 
         public Task UpdateLongBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice, ILogger log);
 

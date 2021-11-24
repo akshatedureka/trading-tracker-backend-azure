@@ -47,14 +47,14 @@ namespace TradingService.TradeManagement.Swing
                 throw new Exception("Required data is missing");
             }
 
-            var userBlock = await _queries.GetUserBlockByUserIdAndSymbol(userId, symbol);
+            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
             switch (messageType)
             {
                 case Enums.OrderMessageTypes.Create:
                     try
                     {
-                        await _tradeManagementHelper.CreateShortBracketOrdersBasedOnCurrentPrice(userBlock, log);
+                        await _tradeManagementHelper.CreateShortBracketOrdersBasedOnCurrentPrice(blocks, userId, symbol, log);
                     }
                     catch (Exception ex)
                     {

@@ -43,17 +43,12 @@ namespace TradingService.BlockManagement
 
             try
             {
-                const string containerId = "Blocks";
                 const string containerIdForLadders = "Ladders";
-                var container = await _repository.GetContainer(containerId);
                 var containerForLadders = await _repository.GetContainer(containerIdForLadders);
 
-                var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(u => u.UserId == userId && u.Symbol == ladder.Symbol).ToList().FirstOrDefault();
 
-                if (userBlock == null) return new NotFoundObjectResult($"No blocks were found for symbol {ladder.Symbol}.");
+                var success = await _queries.DeleteBlocksByUserIdAndSymbol(userId, ladder.Symbol);
 
-                var deleteUserBlockResponse = await container.DeleteItemAsync<UserBlock>(userBlock.Id, new PartitionKey(userBlock.UserId));
 
                 // Update ladder to indicate blocks have been deleted
                 var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)

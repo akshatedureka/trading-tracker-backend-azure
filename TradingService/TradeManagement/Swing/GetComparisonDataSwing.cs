@@ -48,29 +48,8 @@ namespace TradingService.TradeManagement.Swing
 
             var accountType = await _queries.GetAccountTypeByUserId(userId);
 
-            // The name of the database and container we will create
-            const string containerIdForBlocks = "Blocks";
-
-            // ToDo: Create common DB query in Common project to use throughout functions
-            // Get open user blocks
-            var userBlocks = new List<UserBlock>();
-            try
-            {
-                var containerForBlocks = await _repository.GetContainer(containerIdForBlocks);
-                userBlocks = containerForBlocks
-                    .GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(b => b.UserId == userId).ToList();
-            }
-            catch (CosmosException ex)
-            {
-                log.LogError("Issue getting blocks from Cosmos DB item {ex}", ex);
-                return new BadRequestObjectResult("Error getting blocks from DB: " + ex);
-            }
-            catch (Exception ex)
-            {
-                log.LogError("Issue getting blocks {ex}", ex);
-                return new BadRequestObjectResult("Error getting blocks:" + ex);
-            }
+            var symbols = await _queries.GetActiveTradingSymbolsByUserId(userId);
+            var blocks = await _queries.GetBlocksByUserIdAndSymbols(userId, symbols);
 
             // Get open orders
             var openOrders = await _order.GetOpenOrders(_configuration, userId);
@@ -79,31 +58,30 @@ namespace TradingService.TradeManagement.Swing
             var comparisonData = new List<ComparisonDataTransfer>();
 
             // Run comparison logic and populate comparison data
-            foreach (var userBlock in userBlocks)
+            foreach (var symbol in symbols)
             {
                 // Get blocks with open buy or sell orders
-                var symbol = userBlock.Symbol;
                 var openBuyOrderBlocks = new List<Block>();
                 var openSellOrderBlocks = new List<Block>();
 
                 if (accountType == AccountTypes.SwingLong)
                 {
-                    openBuyOrderBlocks = userBlock.Blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated).ToList();
-                    openSellOrderBlocks = userBlock.Blocks.Where(b => b.SellOrderCreated).ToList();
+                    openBuyOrderBlocks = blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated).ToList();
+                    openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated).ToList();
                 }
                 else
                 {
-                    openBuyOrderBlocks = userBlock.Blocks.Where(b => b.BuyOrderCreated).ToList();
-                    openSellOrderBlocks = userBlock.Blocks.Where(b => b.SellOrderCreated && !b.BuyOrderCreated).ToList();
+                    openBuyOrderBlocks = blocks.Where(b => b.BuyOrderCreated).ToList();
+                    openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated && !b.BuyOrderCreated).ToList();
                 }
 
-                var openBuyOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol && o.OrderSide == OrderSide.Buy);
-                var openSellOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol && o.OrderSide == OrderSide.Sell);
+                var openBuyOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol.Name && o.OrderSide == OrderSide.Buy);
+                var openSellOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol.Name && o.OrderSide == OrderSide.Sell);
 
                 // Cycle through open buy order blocks and see if buy order exists in external system
                 foreach (var openBuyOrderBlock in openBuyOrderBlocks)
                 {
-                    var comparisonBlock = CreateComparisonDataFromBlock(symbol, openBuyOrderBlock);
+                    var comparisonBlock = CreateComparisonDataFromBlock(symbol.Name, openBuyOrderBlock);
                     var externalBuyOrderId = openBuyOrderBlock.ExternalBuyOrderId;
                     foreach (var buyOrder in openBuyOrdersForSymbol)
                     {
@@ -121,7 +99,7 @@ namespace TradingService.TradeManagement.Swing
                 // Cycle through open sell order blocks and see if a sell order exists in external system
                 foreach (var openSellOrderBlock in openSellOrderBlocks)
                 {
-                    var comparisonBlock = CreateComparisonDataFromBlock(symbol, openSellOrderBlock);
+                    var comparisonBlock = CreateComparisonDataFromBlock(symbol.Name, openSellOrderBlock);
                     var externalSellOrderId = openSellOrderBlock.ExternalSellOrderId;
                     foreach (var sellOrder in openSellOrdersForSymbol)
                     {

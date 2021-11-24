@@ -17,12 +17,22 @@ namespace TradingService.Common.Repository
 
         public Task<Symbol> UpdateTradingStatusForSymbol(string userId, string symbolName);
 
+        #region blocks
+        public Task<bool> CreateBlocks(List<Block> blocks);
+
+        public Task<bool> CreateBlock(Block block);
+
         public Task<List<Block>> GetBlocksByUserIdAndSymbols(string userId, List<Symbol> symbols);
 
         public Task<List<Block>> GetBlocksByUserIdAndSymbol(string userId, string symbol);
 
         public Task<UserBlock> GetUserBlockByUserIdAndSymbol(string userId, string symbol);
+
         public Task<bool> UpdateUserBlock(UserBlock userBlock);
+
+        public Task<bool> UpdateBlock(Block block);
+
+        Task<bool> DeleteBlock(Block block);
 
         public Task<bool> DeleteBlocksByUserIdAndSymbol(string userId, string symbol);
 
@@ -36,7 +46,11 @@ namespace TradingService.Common.Repository
 
         public Task<bool> ResetUserBlocksByUserIdAndSymbol(string userId, string symbol);
 
-        public Task<bool> ResetUserBlockByUserIdAndSymbol(string userId, string symbol, string blockId);
+        public Task<bool> ResetUserBlock(Block block);
+
+        #endregion
+
+
 
         public Task<AccountTypes> GetAccountTypeByUserId(string userId);
 

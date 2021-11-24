@@ -123,8 +123,8 @@ namespace TradingService.Common.Repository
                 }
 
                 var container = await _repository.GetContainer(containerIdBlocks);
-                var blocks = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId && symbolNames.Contains(s.Symbol)).ToList().FirstOrDefault().Blocks;
+                var blocks = container.GetItemLinqQueryable<Block>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId && symbolNames.Contains(s.Symbol)).ToList();
 
                 return blocks;
             }
@@ -140,9 +140,9 @@ namespace TradingService.Common.Repository
             try
             {
                 var container = await _repository.GetContainer(containerIdBlocks);
-                var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId && s.Symbol == symbol).ToList().FirstOrDefault();
-                return userBlock.Blocks;
+                var blocks = container.GetItemLinqQueryable<Block>(allowSynchronousQueryExecution: true)
+                    .Where(s => s.UserId == userId && s.Symbol == symbol).ToList();
+                return blocks;
             }
             catch (Exception ex)
             {
@@ -222,6 +222,22 @@ namespace TradingService.Common.Repository
             }
         }
 
+        public async Task<bool> DeleteBlock(Block block)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+                var deleteBlockResponse = await container.DeleteItemAsync<Block>(block.Id, new PartitionKey(block.UserId));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue deleting block from Cosmos DB: {ex.Message}.");
+                return false;
+            }
+        }
+
         public async Task<bool> UpdateUserBlock(UserBlock userBlock)
         {
             try
@@ -251,6 +267,42 @@ namespace TradingService.Common.Repository
             {
                 Console.WriteLine($"Issue getting closed blocks from Cosmos DB: {ex.Message}.");
                 return null;
+            }
+        }
+
+        public async Task<bool> CreateBlocks(List<Block> blocks)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+
+                foreach (var block in blocks)
+                {
+                    var response = await container.CreateItemAsync(block, new PartitionKey(block.UserId));
+
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue creating block in Cosmos DB: {ex.Message}.");
+                return false;
+            }
+        }
+
+        public async Task<bool> CreateBlock(Block block)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+                var newBlock = await container.CreateItemAsync(block, new PartitionKey(block.UserId));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue deleting block from Cosmos DB: {ex.Message}.");
+                return false;
             }
         }
 
@@ -323,15 +375,30 @@ namespace TradingService.Common.Repository
             }
         }
 
+        public async Task<bool> UpdateBlock(Block block)
+        {
+            try
+            {
+                var container = await _repository.GetContainer(containerIdBlocks);
+                var updateBlock = await container.ReplaceItemAsync(block, block.Id, new PartitionKey(block.UserId));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Issue resetting user block in Cosmos DB: {ex.Message}.");
+                return false;
+            }
+        }
+
         public async Task<bool> ResetUserBlocksByUserIdAndSymbol(string userId, string symbol)
         {
             try
             {
                 var container = await _repository.GetContainer(containerIdBlocks);
-                var userBlock = container.GetItemLinqQueryable<UserBlock>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId && s.Symbol == symbol).ToList().FirstOrDefault();
+                var blocks = await GetBlocksByUserIdAndSymbol(userId, symbol);
 
-                foreach (var block in userBlock.Blocks)
+                foreach (var block in blocks.Where(b => b.BuyOrderCreated || b.SellOrderCreated))
                 {
                     block.ExternalBuyOrderId = new Guid();
                     block.ExternalSellOrderId = new Guid();
@@ -344,9 +411,9 @@ namespace TradingService.Common.Repository
                     block.SellOrderFilled = false;
                     block.SellOrderFilledPrice = 0;
                     block.DateSellOrderFilled = DateTime.MinValue;
-                }
 
-                var updateUserBlock = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                    var updateBlock = await container.ReplaceItemAsync(block, block.Id, new PartitionKey(userId));
+                }
 
                 return true;
             }
@@ -357,40 +424,27 @@ namespace TradingService.Common.Repository
             }
         }
 
-        public async Task<bool> ResetUserBlockByUserIdAndSymbol(string userId, string symbol, string blockId)
+        public async Task<bool> ResetUserBlock(Block block)
         {
             try
             {
                 var container = await _repository.GetContainer(containerIdBlocks);
-                var userBlock = await GetUserBlockByUserIdAndSymbol(userId, symbol);
-
-                if (userBlock == null)
-                {
-                    return false;
-                }
-
-                var blockToUpdate = userBlock.Blocks.Where(b => b.Id == blockId).FirstOrDefault();
-
-                if (userBlock == null)
-                {
-                    return false;
-                }
 
                 // Reset block
-                blockToUpdate.ExternalBuyOrderId = new Guid();
-                blockToUpdate.ExternalSellOrderId = new Guid();
-                blockToUpdate.ExternalStopLossOrderId = new Guid();
-                blockToUpdate.BuyOrderCreated = false;
-                blockToUpdate.BuyOrderFilled = false;
-                blockToUpdate.BuyOrderFilledPrice = 0;
-                blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
-                blockToUpdate.SellOrderCreated = false;
-                blockToUpdate.SellOrderFilled = false;
-                blockToUpdate.SellOrderFilledPrice = 0;
-                blockToUpdate.DateSellOrderFilled = DateTime.MinValue;
+                block.ExternalBuyOrderId = new Guid();
+                block.ExternalSellOrderId = new Guid();
+                block.ExternalStopLossOrderId = new Guid();
+                block.BuyOrderCreated = false;
+                block.BuyOrderFilled = false;
+                block.BuyOrderFilledPrice = 0;
+                block.DateBuyOrderFilled = DateTime.MinValue;
+                block.SellOrderCreated = false;
+                block.SellOrderFilled = false;
+                block.SellOrderFilledPrice = 0;
+                block.DateSellOrderFilled = DateTime.MinValue;
 
                 // Replace the item with the updated content
-                var userBlockReplaceResponse = await container.ReplaceItemAsync(userBlock, userBlock.Id, new PartitionKey(userBlock.UserId));
+                var userBlockReplaceResponse = await container.ReplaceItemAsync(block, block.Id, new PartitionKey(block.UserId));
 
                 return true;
             }

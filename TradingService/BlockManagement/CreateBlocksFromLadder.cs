@@ -91,6 +91,9 @@ namespace TradingService.BlockManagement
                     var block = new Block
                     {
                         Id = Guid.NewGuid().ToString(),
+                        UserId = userId,
+                        Symbol = ladderData.Symbol,
+                        NumShares = ladderData.InitialNumShares,
                         DateCreated = DateTime.Now,
                         ConfidenceLevel = initialConfidenceLevel,
                         BuyOrderPrice = blockPrice.BuyPrice,
@@ -101,19 +104,8 @@ namespace TradingService.BlockManagement
                     blocks.Add(block);
                 }
 
-                // Create UserBlock item for user with blocks added
-                var userBlockToCreate = new UserBlock()
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    DateCreated = DateTime.Now,
-                    UserId = userId,
-                    Symbol = ladderData.Symbol,
-                    NumShares = ladderData.InitialNumShares,
-                    Blocks = blocks
-                };
+                var success = await _queries.CreateBlocks(blocks);
 
-                var newUserBlockResponse = await container.CreateItemAsync(userBlockToCreate,
-                    new PartitionKey(userBlockToCreate.UserId));                // Update ladder to indicate blocks have been created // ToDo: move this to another call after the create user block response?
                 var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
                 .Where(l => l.UserId == userId).ToList().FirstOrDefault();
 
