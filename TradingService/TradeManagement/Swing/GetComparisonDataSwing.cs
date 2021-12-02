@@ -66,13 +66,13 @@ namespace TradingService.TradeManagement.Swing
 
                 if (accountType == AccountTypes.SwingLong)
                 {
-                    openBuyOrderBlocks = blocks.Where(b => b.BuyOrderCreated && !b.SellOrderCreated).ToList();
-                    openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated).ToList();
+                    openBuyOrderBlocks = blocks.Where(b => (b.BuyOrderCreated && !b.SellOrderCreated) && b.Symbol == symbol.Name).ToList();
+                    openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated && b.Symbol == symbol.Name).ToList();
                 }
                 else
                 {
-                    openBuyOrderBlocks = blocks.Where(b => b.BuyOrderCreated).ToList();
-                    openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated && !b.BuyOrderCreated).ToList();
+                    openBuyOrderBlocks = blocks.Where(b => b.BuyOrderCreated && b.Symbol == symbol.Name).ToList();
+                    openSellOrderBlocks = blocks.Where(b => (b.SellOrderCreated && !b.BuyOrderCreated) && b.Symbol == symbol.Name).ToList();
                 }
 
                 var openBuyOrdersForSymbol = openOrders.Where(o => o.Symbol == symbol.Name && o.OrderSide == OrderSide.Buy);
