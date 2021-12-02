@@ -42,45 +42,33 @@ namespace TradingService.TradeManagement.Swing
             var userId = req.Headers["From"].FirstOrDefault();
 
             // The name of the database and container we will create
-            const string containerIdForSymbols = "Symbols";
             const string containerIdForClosedBlocks = "BlocksClosed";
             const string containerIdForCondensedlocks = "BlocksCondensed";
 
-            var containerForSymbols = await _repository.GetContainer(containerIdForSymbols);
             var containerForBlocksClosed = await _repository.GetContainer(containerIdForClosedBlocks);
             var containerForBlocksCondensed = await _repository.GetContainer(containerIdForCondensedlocks);
 
             // Get symbol data
-            var symbols = new List<Symbol>();
+            var userSymbol = await _queries.GetUserSymbolByUserId(userId);
 
-            // Read symbols from Cosmos DB
-            try
+            if (userSymbol == null)
             {
-                var userSymbolResponse = containerForSymbols
-                    .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
-                if (userSymbolResponse != null)
-                {
-                    symbols = userSymbolResponse.Symbols;
-                }
-                else
-                {
-                    return new NoContentResult();
-                }
+                return new NoContentResult();
             }
-            catch (CosmosException ex)
+
+            // Get ladder data
+            var userLadder = await _queries.GetLaddersByUserId(userId);
+
+            if (userLadder == null)
             {
-                log.LogError($"Issue getting symbols from Cosmos DB item {ex.Message}.");
-                return new BadRequestObjectResult($"Error getting symbols from DB: {ex.Message}.");
+                return new NoContentResult();
             }
-            catch (Exception ex)
-            {
-                log.LogError($"Issue getting symbols {ex.Message}.");
-                return new BadRequestObjectResult($"Error getting symbols: {ex.Message}.");
-            }
+
+            var ladderswithBlocks = userLadder.Ladders.Where(l => l.BlocksCreated);
+            var symbolsWithBlocksCreated = (userSymbol.Symbols.SelectMany(symbol => ladderswithBlocks.Where(ladder => ladder.Symbol == symbol.Name).Select(ladder => symbol))).ToList();
 
             // Add symbol data to return object
-            var tradingData = symbols.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
+            var tradingData = symbolsWithBlocksCreated.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
 
             // Get closed block data
             var closedBlocks = new List<ClosedBlock>();
