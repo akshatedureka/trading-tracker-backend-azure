@@ -11,8 +11,10 @@ namespace TradingService.BlockManagement.Models
         public DateTime DateCreated { get; set; }
         [JsonProperty(PropertyName = "symbol")]
         public string Symbol { get; set; }
-        [JsonProperty(PropertyName = "initialNumShares")]
-        public long InitialNumShares { get; set; }
+        [JsonProperty(PropertyName = "numSharesPerBlock")]
+        public long NumSharesPerBlock { get; set; }
+        [JsonProperty(PropertyName = "numSharesMax")]
+        public long NumSharesMax { get; set; }
         [JsonProperty(PropertyName = "buyPercentage")]
         public decimal BuyPercentage { get; set; }
         [JsonProperty(PropertyName = "sellPercentage")]

@@ -52,7 +52,8 @@ namespace TradingService.BlockManagement
 
                 if (ladderToUpdate != null)
                 {
-                    ladderToUpdate.InitialNumShares = ladder.InitialNumShares;
+                    ladderToUpdate.NumSharesPerBlock = ladder.NumSharesPerBlock;
+                    ladderToUpdate.NumSharesMax = ladder.NumSharesMax;
                     ladderToUpdate.BuyPercentage = ladder.BuyPercentage;
                     ladderToUpdate.SellPercentage = ladder.SellPercentage;
                     ladderToUpdate.StopLossPercentage = ladder.StopLossPercentage;

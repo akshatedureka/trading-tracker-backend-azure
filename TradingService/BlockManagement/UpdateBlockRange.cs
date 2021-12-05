@@ -99,7 +99,7 @@ namespace TradingService.BlockManagement
                         DateCreated = DateTime.Now,
                         UserId = userId,
                         Symbol = ladder.Symbol,
-                        NumShares = ladder.InitialNumShares,
+                        NumShares = ladder.NumSharesPerBlock,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
@@ -120,7 +120,7 @@ namespace TradingService.BlockManagement
                         DateCreated = DateTime.Now,
                         UserId = userId,
                         Symbol = ladder.Symbol,
-                        NumShares = ladder.InitialNumShares,
+                        NumShares = ladder.NumSharesPerBlock,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice

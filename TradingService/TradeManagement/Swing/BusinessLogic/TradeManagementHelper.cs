@@ -40,119 +40,146 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
 
         public async Task CreateLongBracketOrdersBasedOnCurrentPrice(List<Block> blocks, string userId, string symbol, ILogger log)
         {
+            //ToDo: Make common function to do this common task for long and short
             var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol);
+            long openPositionQty = 0;
+            var openPositions = await _order.GetOpenPositions(_configuration, userId);
 
-            // Get blocks above and below the current price to create buy orders
-            var blocksAbove = GetLongBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 5);
-            var blocksBelow = GetLongBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
-
-            // Create limit / stop limit orders for each block above and below current price
-            var countAboveAndBelow = 2;
-
-            // Two blocks above
-            for (var x = 0; x < countAboveAndBelow; x++)
+            if (openPositions.Count > 0)
             {
-                var block = blocksAbove[x];
-                var stopPrice = block.BuyOrderPrice - (decimal)0.05;
-
-                if (block.BuyOrderCreated) continue; // Order already exists
-
-                var orderIds = await _order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, block.NumShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created initial buy bracket orders for for user {userId} symbol {symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
-
-                //ToDo: Refactor to combine with blocks below
-                // Update Cosmos DB item
-                var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
-
-                // Update with external buy id generated from Alpaca
-                blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
-                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.BuyOrderCreated = true;
-
-                await _queries.UpdateBlock(blockToUpdate);
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
+                openPositionQty = openPositions.Where(p => p.Symbol == symbol).FirstOrDefault().IntegerQuantity;
             }
 
-            // Two blocks below
-            for (var x = 0; x < countAboveAndBelow; x++)
+            var ladders = await _queries.GetLaddersByUserId(userId);
+            var maxNumShares = ladders.Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
+
+            if (openPositionQty < maxNumShares)
             {
-                var block = blocksBelow[x];
+                // Get blocks above and below the current price to create buy orders
+                var blocksAbove = GetLongBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 5);
+                var blocksBelow = GetLongBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
 
-                if (block.BuyOrderCreated) continue; // Order already exists
+                // Create limit / stop limit orders for each block above and below current price
+                var countAboveAndBelow = 2;
 
-                var orderIds = await _order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userId,symbol, block.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created initial buy bracket orders for for user {userId} symbol {symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
+                // Two blocks above
+                for (var x = 0; x < countAboveAndBelow; x++)
+                {
+                    var block = blocksAbove[x];
+                    var stopPrice = block.BuyOrderPrice - (decimal)0.05;
 
-                var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
+                    if (block.BuyOrderCreated) continue; // Order already exists
 
-                // Update with external buy id generated from Alpaca
-                blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
-                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.BuyOrderCreated = true;
+                    var orderIds = await _order.CreateStopLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, block.NumShares, stopPrice, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                    log.LogInformation($"Created initial buy bracket orders for for user {userId} symbol {symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
 
-                await _queries.UpdateBlock(blockToUpdate);
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
+                    //ToDo: Refactor to combine with blocks below
+                    // Update Cosmos DB item
+                    var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
+
+                    // Update with external buy id generated from Alpaca
+                    blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
+                    blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
+                    blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                    blockToUpdate.BuyOrderCreated = true;
+
+                    await _queries.UpdateBlock(blockToUpdate);
+                    log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
+                }
+
+                // Two blocks below
+                for (var x = 0; x < countAboveAndBelow; x++)
+                {
+                    var block = blocksBelow[x];
+
+                    if (block.BuyOrderCreated) continue; // Order already exists
+
+                    var orderIds = await _order.CreateLimitBracketOrder(_configuration, OrderSide.Buy, userId, symbol, block.NumShares, block.BuyOrderPrice, block.SellOrderPrice, block.StopLossOrderPrice);
+                    log.LogInformation($"Created initial buy bracket orders for for user {userId} symbol {symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
+
+                    var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
+
+                    // Update with external buy id generated from Alpaca
+                    blockToUpdate.ExternalBuyOrderId = orderIds.ParentOrderId;
+                    blockToUpdate.ExternalSellOrderId = orderIds.TakeProfitId;
+                    blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                    blockToUpdate.BuyOrderCreated = true;
+
+                    await _queries.UpdateBlock(blockToUpdate);
+                    log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
+                }
             }
         }
 
         public async Task CreateShortBracketOrdersBasedOnCurrentPrice(List<Block> blocks, string userId, string symbol, ILogger log)
         {
             var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol);
+            long openPositionQty = 0;
+            var openPositions = await _order.GetOpenPositions(_configuration, userId);
 
-            // Get blocks above and below the current price to create sell orders
-            var blocksAbove = GetShortBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 5);
-            var blocksBelow = GetShortBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
-
-            // Create limit / stop limit orders for each block above and below current price
-            var countAboveAndBelow = 2;
-
-            // Two blocks below
-            for (var x = 0; x < countAboveAndBelow; x++)
+            if (openPositions.Count > 0)
             {
-                var block = blocksBelow[x];
-                var stopPrice = block.SellOrderPrice + (decimal)0.05;
-
-                if (block.SellOrderCreated) continue; // Order already exists
-
-                var orderIds = await _order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userId, symbol, block.NumShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created initial sell bracket orders for user {userId} symbol {symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}  at {DateTime.Now}.");
-
-                //ToDo: Refactor to combine with blocks below
-                // Update Cosmos DB item
-                var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
-
-                // Update with external order ids generated from Alpaca
-                blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
-                blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.SellOrderCreated = true;
-
-                await _queries.UpdateBlock(blockToUpdate);
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
+                openPositionQty = openPositions.Where(p => p.Symbol == symbol).FirstOrDefault().IntegerQuantity;
             }
 
-            // Two blocks above
-            for (var x = 0; x < countAboveAndBelow; x++)
+            var ladders = await _queries.GetLaddersByUserId(userId);
+            var maxNumShares = ladders.Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
+
+            if (openPositionQty < maxNumShares)
             {
-                var block = blocksAbove[x];
+                // Get blocks above and below the current price to create sell orders
+                var blocksAbove = GetShortBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 5);
+                var blocksBelow = GetShortBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
 
-                if (block.SellOrderCreated) continue; // Order already exists
+                // Create limit / stop limit orders for each block above and below current price
+                var countAboveAndBelow = 2;
 
-                var orderIds = await _order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userId, symbol, block.NumShares, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
-                log.LogInformation($"Created initial sell bracket orders for user {userId} symbol {symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
+                // Two blocks below
+                for (var x = 0; x < countAboveAndBelow; x++)
+                {
+                    var block = blocksBelow[x];
+                    var stopPrice = block.SellOrderPrice + (decimal)0.05;
 
-                var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
+                    if (block.SellOrderCreated) continue; // Order already exists
 
-                // Update with external buy id generated from Alpaca
-                blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
-                blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
-                blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
-                blockToUpdate.SellOrderCreated = true;
+                    var orderIds = await _order.CreateStopLimitBracketOrder(_configuration, OrderSide.Sell, userId, symbol, block.NumShares, stopPrice, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
+                    log.LogInformation($"Created initial sell bracket orders for user {userId} symbol {symbol} for stop price {stopPrice} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice}  at {DateTime.Now}.");
 
-                await _queries.UpdateBlock(blockToUpdate);
-                log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
+                    //ToDo: Refactor to combine with blocks below
+                    // Update Cosmos DB item
+                    var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
+
+                    // Update with external order ids generated from Alpaca
+                    blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
+                    blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
+                    blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                    blockToUpdate.SellOrderCreated = true;
+
+                    await _queries.UpdateBlock(blockToUpdate);
+                    log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
+                }
+
+                // Two blocks above
+                for (var x = 0; x < countAboveAndBelow; x++)
+                {
+                    var block = blocksAbove[x];
+
+                    if (block.SellOrderCreated) continue; // Order already exists
+
+                    var orderIds = await _order.CreateLimitBracketOrder(_configuration, OrderSide.Sell, userId, symbol, block.NumShares, block.SellOrderPrice, block.BuyOrderPrice, block.StopLossOrderPrice);
+                    log.LogInformation($"Created initial sell bracket orders for user {userId} symbol {symbol} limit price {block.SellOrderPrice} take profit price {block.BuyOrderPrice} stop loss price {block.StopLossOrderPrice} at {DateTime.Now}.");
+
+                    var blockToUpdate = blocks.FirstOrDefault(b => b.Id == block.Id);
+
+                    // Update with external buy id generated from Alpaca
+                    blockToUpdate.ExternalBuyOrderId = orderIds.TakeProfitId;
+                    blockToUpdate.ExternalSellOrderId = orderIds.ParentOrderId;
+                    blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
+                    blockToUpdate.SellOrderCreated = true;
+
+                    await _queries.UpdateBlock(blockToUpdate);
+                    log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
+                }
             }
         }
 

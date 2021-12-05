@@ -93,7 +93,7 @@ namespace TradingService.BlockManagement
                         Id = Guid.NewGuid().ToString(),
                         UserId = userId,
                         Symbol = ladderData.Symbol,
-                        NumShares = ladderData.InitialNumShares,
+                        NumShares = ladderData.NumSharesPerBlock,
                         DateCreated = DateTime.Now,
                         ConfidenceLevel = initialConfidenceLevel,
                         BuyOrderPrice = blockPrice.BuyPrice,
