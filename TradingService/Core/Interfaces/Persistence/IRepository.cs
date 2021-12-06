@@ -8,8 +8,8 @@ namespace TradingService.Core.Interfaces.Persistence
     {
         Task<List<T>> GetItemsAsyncByUserId(string userId);
         Task<T> GetItemAsync(string id);
-        Task AddItemAsync(T item);
-        Task UpdateItemAsync(string id, T item);
+        Task<T> AddItemAsync(T item);
+        Task<T> UpdateItemAsync(T item);
         Task DeleteItemAsync(string id);
     }
 }

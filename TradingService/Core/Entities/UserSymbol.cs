@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 using TradingService.Core.Entities.Base;
 
@@ -7,8 +6,6 @@ namespace TradingService.Core.Entities
 {
     public class UserSymbol : BaseEntity
     {
-        [JsonProperty(PropertyName = "userId")]
-        public string UserId { get; set; }
         [JsonProperty(PropertyName = "symbols")]
         public List<Symbol> Symbols { get; set; }
 

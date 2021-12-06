@@ -8,20 +8,18 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Cosmos;
-using TradingService.Common.Repository;
 using TradingService.SymbolManagement.Models;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.SymbolManagement
 {
     public class GetTradingSymbols
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly ISymbolItemRepository _symbolRepo;
 
-        public GetTradingSymbols(IRepository repository, IQueries queries)
+        public GetTradingSymbols(ISymbolItemRepository symbolRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _symbolRepo = symbolRepo;
         }
 
         [FunctionName("GetTradingSymbols")]
@@ -37,17 +35,12 @@ namespace TradingService.SymbolManagement
                 return new BadRequestObjectResult("User id has not been provided.");
             }
 
-            // The name of the database and container
-            const string containerId = "Symbols";
-
             // Read symbols from Cosmos DB
             try
             {
-                var container = await _repository.GetContainer(containerId);
-                var userSymbolResponse = container
-                    .GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
-                return userSymbolResponse != null ? new OkObjectResult(userSymbolResponse.Symbols) : new OkObjectResult(new List<Symbol>());
+                var userSymbolResponse = await _symbolRepo.GetItemsAsyncByUserId(userId);  
+
+                return userSymbolResponse.Count != 0 ? new OkObjectResult(userSymbolResponse.FirstOrDefault().Symbols) : new OkObjectResult(new List<Symbol>());
             }
             catch (CosmosException ex)
             {

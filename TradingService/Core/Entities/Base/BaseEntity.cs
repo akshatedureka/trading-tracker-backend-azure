@@ -7,7 +7,9 @@ namespace TradingService.Core.Entities.Base
     {
         [JsonProperty(PropertyName = "id")]
         public virtual string Id { get; set; }
+        [JsonProperty(PropertyName = "userId")]
+        public virtual string UserId { get; set; }
         [JsonProperty(PropertyName = "dateCreated")]
-        public DateTime DateCreated { get; set; }
+        public virtual DateTime DateCreated { get; set; }
     }
 }

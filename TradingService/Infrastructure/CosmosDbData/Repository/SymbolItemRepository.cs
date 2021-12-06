@@ -14,17 +14,18 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
     {
         public override string ContainerName { get; } = "Symbols";
 
-        public override string GenerateId(UserSymbol entity) => $"{entity.Id}:{Guid.NewGuid()}";
+        public override string GenerateId(UserSymbol entity) => Guid.NewGuid().ToString();
 
-        public override PartitionKey ResolvePartitionKey(string entityId) => new PartitionKey(entityId.Split(':')[0]);
+        public override PartitionKey ResolvePartitionKey(string userId) => new PartitionKey(userId);
 
         public SymbolItemRepository(ICosmosDbContainerFactory factory) : base(factory)
         { }
 
-        public async Task<UserSymbol> GetUserSymbolByUserId(string userId)
-        {
-            var result = await GetItemsAsyncByUserId(userId);
-            return result.FirstOrDefault();
-        }
+        //public async Task<UserSymbol> GetUserSymbolByUserId(string userId)
+        //{
+        //    var result = await GetItemsAsyncByUserId(userId);
+        //    return result.FirstOrDefault();
+        //}
+
     }
 }

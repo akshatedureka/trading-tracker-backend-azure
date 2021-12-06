@@ -8,23 +8,21 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using TradingService.Common.Repository;
-using TradingService.SymbolManagement.Models;
 using TradingService.SymbolManagement.Transfer;
 using System.IO;
 using Newtonsoft.Json;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
 
 namespace TradingService.SymbolManagement
 {
     public class CreateTradingSymbol
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly ISymbolItemRepository _symbolRepo;
 
-        public CreateTradingSymbol(IRepository repository, IQueries queries)
+        public CreateTradingSymbol(ISymbolItemRepository symbolRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _symbolRepo = symbolRepo;
         }
 
         [FunctionName("CreateTradingSymbol")]
@@ -41,9 +39,6 @@ namespace TradingService.SymbolManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string containerId = "Symbols";
-            var container = await _repository.GetContainer(containerId);
-
             var symbolToAdd = new Symbol
             {
                 Id = Guid.NewGuid().ToString(),
@@ -57,24 +52,23 @@ namespace TradingService.SymbolManagement
 
             try
             {
-                var userSymbol = await _queries.GetUserSymbolByUserId(userId);
+                var userSymbolReponse = await _symbolRepo.GetItemsAsyncByUserId(userId);
+                var userSymbol = userSymbolReponse.FirstOrDefault();
 
                 if (userSymbol == null) // Initial UserSymbol item creation
                 {
                     // Create UserSymbol item for user with symbol added
                     var userSymbolToCreate = new UserSymbol()
                     {
-                        Id = Guid.NewGuid().ToString(),
-                        DateCreated = DateTime.Now,
                         UserId = userId,
                         Symbols = new List<Symbol>
                         {
                             symbolToAdd
                         }
                     };
-                    var newUserSymbolResponse = await container.CreateItemAsync(userSymbolToCreate,
-                        new PartitionKey(userSymbolToCreate.UserId));
-                    return new OkObjectResult(newUserSymbolResponse.Resource.ToString());
+
+                    var newUserSymbolResponse = await _symbolRepo.AddItemAsync(userSymbolToCreate);
+                    return new OkObjectResult(newUserSymbolResponse.ToString());
                 }
 
                 // Check if symbol is added already, if so, return a conflict result
@@ -86,9 +80,9 @@ namespace TradingService.SymbolManagement
 
                 // Add new symbol to existing UserSymbol item
                 userSymbol.Symbols.Add(symbolToAdd);
-                var addSymbolResponse =
-                    await container.ReplaceItemAsync(userSymbol, userSymbol.Id, new PartitionKey(userSymbol.UserId));
-                return new OkObjectResult(addSymbolResponse.Resource.ToString());
+                var addSymbolResponse = await _symbolRepo.UpdateItemAsync(userSymbol);
+
+                return new OkObjectResult(addSymbolResponse.ToString());
             }
             catch (CosmosException ex)
             {

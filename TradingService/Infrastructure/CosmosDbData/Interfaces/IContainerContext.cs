@@ -7,6 +7,6 @@ namespace TradingService.Infrastructure.CosmosDbData.Interfaces
     {
         string ContainerName { get; }
         string GenerateId(T entity);
-        PartitionKey ResolvePartitionKey(string entityId);
+        PartitionKey ResolvePartitionKey(string userId);
     }
 }

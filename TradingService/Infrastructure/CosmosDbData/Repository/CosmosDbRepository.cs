@@ -15,7 +15,7 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
 
         public abstract string GenerateId(T entity);
 
-        public abstract PartitionKey ResolvePartitionKey(string entityId);
+        public abstract PartitionKey ResolvePartitionKey(string userId);
 
         private readonly ICosmosDbContainerFactory _cosmosDbContainerFactory;
 
@@ -27,10 +27,13 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
             _container = _cosmosDbContainerFactory.GetContainer(ContainerName)._container;
         }
 
-        public async Task AddItemAsync(T item)
+        public async Task<T> AddItemAsync(T item)
         {
             item.Id = GenerateId(item);
-            await _container.CreateItemAsync<T>(item, ResolvePartitionKey(item.Id));
+            item.DateCreated = DateTime.Now;
+            var newItem = await _container.CreateItemAsync<T>(item, ResolvePartitionKey(item.UserId));
+
+            return newItem;
         }
 
         public Task DeleteItemAsync(string id)
@@ -51,9 +54,10 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
             }
         }
 
-        public Task UpdateItemAsync(string id, T item)
+        public async Task<T> UpdateItemAsync(T item)
         {
-            throw new NotImplementedException();
+            var updatedItem = await _container.UpsertItemAsync<T>(item, ResolvePartitionKey(item.UserId));
+            return updatedItem;
         }
 
         public async Task<List<T>> GetItemsAsyncByUserId(string userId)

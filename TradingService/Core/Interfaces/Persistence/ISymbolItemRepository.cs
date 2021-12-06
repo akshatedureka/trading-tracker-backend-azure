@@ -5,6 +5,5 @@ namespace TradingService.Core.Interfaces.Persistence
 {
     public interface ISymbolItemRepository : IRepository<UserSymbol>
     {
-        Task<UserSymbol> GetUserSymbolByUserId(string userId);
     }
 }

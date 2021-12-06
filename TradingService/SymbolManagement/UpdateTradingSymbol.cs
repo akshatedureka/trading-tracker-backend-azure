@@ -9,21 +9,18 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.SymbolManagement.Models;
 using TradingService.SymbolManagement.Transfer;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.SymbolManagement
 {
     public class UpdateTradingSymbol
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly ISymbolItemRepository _symbolRepo;
 
-        public UpdateTradingSymbol(IRepository repository, IQueries queries)
+        public UpdateTradingSymbol(ISymbolItemRepository symbolRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _symbolRepo = symbolRepo;
         }
 
         [FunctionName("UpdateTradingSymbol")]
@@ -40,13 +37,10 @@ namespace TradingService.SymbolManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            const string containerId = "Symbols";
-            var container = await _repository.GetContainer(containerId);
-
             try
             {
-                var userSymbol = container.GetItemLinqQueryable<UserSymbol>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+                var userSymbolReponse = await _symbolRepo.GetItemsAsyncByUserId(userId);
+                var userSymbol = userSymbolReponse.FirstOrDefault();
 
                 if (userSymbol == null) return new NotFoundObjectResult("User Symbol not found.");
 
@@ -56,6 +50,7 @@ namespace TradingService.SymbolManagement
                 {
                     symbolToUpdate.Name = symbolTransfer.Name;
                     symbolToUpdate.Active = symbolTransfer.Active;
+                    symbolToUpdate.Trading = symbolTransfer.Trading;
                     symbolToUpdate.NumShares = symbolTransfer.NumShares;
                     symbolToUpdate.TakeProfitOffset = symbolTransfer.TakeProfitOffset;
                     symbolToUpdate.StopLossOffset = symbolTransfer.StopLossOffset;
@@ -65,9 +60,8 @@ namespace TradingService.SymbolManagement
                     return new NotFoundObjectResult("Symbol not found in User Symbol.");
                 }
 
-                var updateSymbolResponse = await container.ReplaceItemAsync(userSymbol, userSymbol.Id,
-                        new PartitionKey(userSymbol.UserId));
-                return new OkObjectResult(updateSymbolResponse.Resource.ToString());
+                var updateSymbolResponse = await _symbolRepo.UpdateItemAsync(userSymbol);
+                return new OkObjectResult(updateSymbolResponse.ToString());
             }
             catch (CosmosException ex)
             {
