@@ -8,18 +8,18 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Cosmos;
-using TradingService.BlockManagement.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
 
 namespace TradingService.BlockManagement
 {
     public class GetLadders
     {
-        private readonly IQueries _queries;
+        private readonly ILadderItemRepository _ladderRepo;
 
-        public GetLadders(IQueries queries)
+        public GetLadders(ILadderItemRepository ladderRepo)
         {
-            _queries = queries;
+            _ladderRepo = ladderRepo;
         }
 
         [FunctionName("GetLadders")]
@@ -38,8 +38,8 @@ namespace TradingService.BlockManagement
             // Read ladders from Cosmos DB
             try
             {
-                var userLadder = await _queries.GetLaddersByUserId(userId);
-                return userLadder != null ? new OkObjectResult(userLadder.Ladders) : new OkObjectResult(new List<Ladder>());
+                var userLadderResponse = await _ladderRepo.GetItemsAsyncByUserId(userId);
+                return userLadderResponse.Count != 0 ? new OkObjectResult(userLadderResponse.FirstOrDefault().Ladders) : new OkObjectResult(new List<Ladder>());
             }
             catch (CosmosException ex)
             {

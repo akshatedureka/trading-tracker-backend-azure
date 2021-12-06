@@ -10,20 +10,18 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.BlockManagement.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
 
 namespace TradingService.BlockManagement
 {
     public class CreateLadder
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly ILadderItemRepository _ladderRepo;
 
-        public CreateLadder(IRepository repository, IQueries queries)
+        public CreateLadder(ILadderItemRepository ladderRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _ladderRepo = ladderRepo;
         }
 
         [FunctionName("CreateLadder")]
@@ -39,9 +37,6 @@ namespace TradingService.BlockManagement
             {
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
-
-            const string containerId = "Ladders";
-            var container = await _repository.GetContainer(containerId);
 
             // Create new ladder to save
             var ladderToAdd = new Ladder()
@@ -59,8 +54,8 @@ namespace TradingService.BlockManagement
 
             try
             {
-                var userLadder = container.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
-                    .Where(l => l.UserId == userId).ToList().FirstOrDefault();
+                var userLadderResponse = await _ladderRepo.GetItemsAsyncByUserId(userId);
+                var userLadder = userLadderResponse.FirstOrDefault();
 
                 if (userLadder == null) // Initial UserLadder item creation
                 {
@@ -75,9 +70,8 @@ namespace TradingService.BlockManagement
                             ladderToAdd
                         }
                     };
-                    var newUserLadderResponse = await container.CreateItemAsync(userLadderToCreate,
-                        new PartitionKey(userLadderToCreate.UserId));
-                    return new OkObjectResult(newUserLadderResponse.Resource.ToString());
+                    var newUserLadderResponse = await _ladderRepo.AddItemAsync(userLadderToCreate);
+                    return new OkObjectResult(newUserLadderResponse.ToString());
                 }
 
                 // Check if ladder is added already, if so, return a conflict result
@@ -89,9 +83,8 @@ namespace TradingService.BlockManagement
 
                 // Add new ladder to existing UserLadder item
                 userLadder.Ladders.Add(ladderToAdd);
-                var addLadderResponse =
-                    await container.ReplaceItemAsync(userLadder, userLadder.Id, new PartitionKey(userLadder.UserId));
-                return new OkObjectResult(addLadderResponse.Resource.ToString());
+                var addLadderResponse = await _ladderRepo.UpdateItemAsync(userLadder);
+                return new OkObjectResult(addLadderResponse.ToString());
             }
             catch (CosmosException ex)
             {

@@ -8,8 +8,8 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Cosmos;
-using TradingService.SymbolManagement.Models;
 using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
 
 namespace TradingService.SymbolManagement
 {

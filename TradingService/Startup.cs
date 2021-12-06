@@ -37,6 +37,7 @@ namespace TradingService
 
             builder.Services.AddCosmosDb(endpointUri, primaryKey, dataBaseName, containers);
             builder.Services.AddScoped<ISymbolItemRepository, SymbolItemRepository>();
+            builder.Services.AddScoped<ILadderItemRepository, LadderItemRepository>();
         }
     }
 }

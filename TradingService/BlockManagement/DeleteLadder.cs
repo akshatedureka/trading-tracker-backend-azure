@@ -7,20 +7,17 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using TradingService.BlockManagement.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.BlockManagement
 {
     public class DeleteLadder
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly ILadderItemRepository _ladderRepo;
 
-        public DeleteLadder(IRepository repository, IQueries queries)
+        public DeleteLadder(ILadderItemRepository ladderRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _ladderRepo = ladderRepo;
         }
 
         [FunctionName("DeleteLadder")]
@@ -36,20 +33,17 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            const string containerId = "Ladders";
-
             try
             {
-                var container = await _repository.GetContainer(containerId);
-                var userLadder = container.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+                var userLadderResponse = await _ladderRepo.GetItemsAsyncByUserId(userId);
+                var userLadder = userLadderResponse.FirstOrDefault();
 
                 if (userLadder == null) return new NotFoundObjectResult("User ladder not found.");
 
                 userLadder.Ladders.Remove(userLadder.Ladders.FirstOrDefault(l => l.Symbol == symbol));
-                var updateLadderResponse = await container.ReplaceItemAsync(userLadder, userLadder.Id,
-                    new PartitionKey(userLadder.UserId));
-                return new OkObjectResult(updateLadderResponse.Resource.ToString());
+                var updateLadderResponse = await _ladderRepo.UpdateItemAsync(userLadder);
+
+                return new OkObjectResult(updateLadderResponse.ToString());
             }
             catch (CosmosException ex)
             {
