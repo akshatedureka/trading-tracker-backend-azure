@@ -12,30 +12,27 @@ using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
-using TradingService.Common.Repository;
-using TradingService.AccountManagement.Enums;
 using TradingService.Core.Interfaces.Persistence;
 using TradingService.Core.Entities;
+using TradingService.Core.Enums;
 
 namespace TradingService.BlockManagement
 {
     public class CreateBlocksFromLadder
     {
         private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
         private readonly ITradeOrder _order;
         private readonly IBlockItemRepository _blockRepo;
         private readonly ILadderItemRepository _ladderRepo;
+        private readonly IAccountItemRepository _accountRepo;
 
-        public CreateBlocksFromLadder(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order, IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo)
+        public CreateBlocksFromLadder(IConfiguration configuration, ITradeOrder order, IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo, IAccountItemRepository accountRepo)
         {
             _configuration = configuration;
-            _repository = repository;
-            _queries = queries;
             _order = order;
             _blockRepo = blockRepo;
             _ladderRepo = ladderRepo;
+            _accountRepo = accountRepo;
         }
 
         [FunctionName("CreateBlocksFromLadder")]
@@ -55,12 +52,8 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            // Connect to Blocks container in Cosmos DB
-            const string containerIdForAccounts = "Accounts";
-            var containerForAccounts = await _repository.GetContainer(containerIdForAccounts);
-
             // Get account type
-            var accountType = await _queries.GetAccountTypeByUserId(userId);
+            var accountType = await _accountRepo.GetAccountTypeByUserId(userId);
 
             // Get current price of symbol to know where to start creating blocks from
             try

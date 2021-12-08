@@ -33,11 +33,18 @@ namespace TradingService
             var endpointUri = builder.GetContext().Configuration.GetValue<string>("EndPointUri"); // The Azure Cosmos DB endpoint
             var primaryKey = builder.GetContext().Configuration.GetValue<string>("PrimaryKey"); // The primary key for the Azure Cosmos account
             var dataBaseName = "TMS";
-            var containers = new List<ContainerInfo> { new ContainerInfo { Name = "Symbols", PartitionKey = "UserId" } };
+            var containers = new List<ContainerInfo> {
+                new ContainerInfo { Name = "Symbols", PartitionKey = "UserId" },
+                new ContainerInfo { Name = "Ladders", PartitionKey = "UserId" },
+                new ContainerInfo { Name = "Blocks", PartitionKey = "UserId" },
+                new ContainerInfo { Name = "Accounts", PartitionKey = "UserId" }
+            };
 
             builder.Services.AddCosmosDb(endpointUri, primaryKey, dataBaseName, containers);
+            builder.Services.AddScoped<IAccountItemRepository, AccountItemRepository>();
             builder.Services.AddScoped<ISymbolItemRepository, SymbolItemRepository>();
             builder.Services.AddScoped<ILadderItemRepository, LadderItemRepository>();
+            builder.Services.AddScoped<IBlockItemRepository, BlockItemRepository>();
         }
     }
 }

@@ -7,28 +7,27 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
-using TradingService.Common.Repository;
-using TradingService.AccountManagement.Enums;
 using TradingService.Core.Interfaces.Persistence;
 using TradingService.Core.Entities;
+using TradingService.Core.Enums;
 
 namespace TradingService.BlockManagement
 {
     public class UpdateBlockRange
     {
         private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
         private readonly ITradeOrder _order;
         private readonly IBlockItemRepository _blockRepo;
         private readonly ILadderItemRepository _ladderRepo;
+        private readonly IAccountItemRepository _accountRepo;
 
-        public UpdateBlockRange(IConfiguration configuration, IQueries queries, ITradeOrder order, IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo)
+        public UpdateBlockRange(IConfiguration configuration, ITradeOrder order, IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo, IAccountItemRepository accountRepo)
         {
             _configuration = configuration;
-            _queries = queries;
             _order = order;
             _blockRepo = blockRepo;
             _ladderRepo = ladderRepo;
+            _accountRepo = accountRepo;
         }
 
         [FunctionName("UpdateBlockRange")]
@@ -44,7 +43,7 @@ namespace TradingService.BlockManagement
             var ladder = userLadder.Ladders.FirstOrDefault(l => l.Symbol == symbol);
 
             // Get account type
-            var accountType = await _queries.GetAccountTypeByUserId(userId);
+            var accountType = await _accountRepo.GetAccountTypeByUserId(userId);
 
             // Get current price of symbol to know where to start creating blocks from
             decimal currentPrice;

@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Azure.Data.AppConfiguration;
 using Microsoft.AspNetCore.Mvc;
@@ -9,21 +8,20 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.AccountManagement.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
 
 namespace TradingService.AccountManagement
 {
     public class UpdateAccountInformation
     {
-        private readonly IRepository _repository;
+        private readonly IAccountItemRepository _accountRepo;
 
-        public UpdateAccountInformation(IRepository repository)
+        public UpdateAccountInformation(IAccountItemRepository accountRepo)
         {
-            _repository = repository;
+            _accountRepo = accountRepo;
         }
 
         [FunctionName("UpdateAccountInformation")]
@@ -53,13 +51,10 @@ namespace TradingService.AccountManagement
             var settingAlpacaKeyResponse = await client.SetConfigurationSettingAsync(settingAlpacaKey);
             var settingAlpacaSecretResponse = await client.SetConfigurationSettingAsync(settingAlpacaSec);
 
-            const string containerId = "Accounts";
-
             try
             {
-                var container = await _repository.GetContainer(containerId);
-                var accountInformation = container.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
-                    .Where(s => s.UserId == userId).ToList().FirstOrDefault();
+                var accounts = await _accountRepo.GetItemsAsyncByUserId(userId);
+                var accountInformation = accounts.FirstOrDefault();
 
                 if (accountInformation == null) return new NotFoundObjectResult("Account information not found.");
 
@@ -67,9 +62,9 @@ namespace TradingService.AccountManagement
                 accountInformation.AccountType = account.AccountType;
                 accountInformation.Email = email;
 
-                var updateAccount = await container.ReplaceItemAsync(accountInformation, accountInformation.Id,
-                        new PartitionKey(accountInformation.UserId));
-                return new OkObjectResult(updateAccount.Resource.ToString());
+                var updatedAccount = await _accountRepo.UpdateItemAsync(accountInformation);
+ 
+                return new OkObjectResult(updatedAccount.ToString());
             }
             catch (CosmosException ex)
             {

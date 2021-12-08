@@ -12,9 +12,8 @@ using TradingService.Common.Models;
 using TradingService.Common.Repository;
 using Alpaca.Markets;
 using TradingService.TradeManagement.Swing.Transfer;
-using Microsoft.Azure.Cosmos;
-using System;
-using TradingService.AccountManagement.Enums;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Enums;
 
 namespace TradingService.TradeManagement.Swing
 {
@@ -22,15 +21,15 @@ namespace TradingService.TradeManagement.Swing
     {
         private readonly IConfiguration _configuration;
         private readonly IQueries _queries;
-        private readonly IRepository _repository;
         private readonly ITradeOrder _order;
+        private readonly IAccountItemRepository _accountRepo;
 
-        public GetComparisonDataSwing(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
+        public GetComparisonDataSwing(IConfiguration configuration, IQueries queries, ITradeOrder order, IAccountItemRepository accountRepo)
         {
             _configuration = configuration;
-            _repository = repository;
             _queries = queries;
             _order = order;
+            _accountRepo = accountRepo;
         }
 
         [FunctionName("GetComparisonDataSwing")]
@@ -46,8 +45,7 @@ namespace TradingService.TradeManagement.Swing
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-            var accountType = await _queries.GetAccountTypeByUserId(userId);
-
+            var accountType = await _accountRepo.GetAccountTypeByUserId(userId);
             var symbols = await _queries.GetActiveTradingSymbolsByUserId(userId);
             var blocks = await _queries.GetBlocksByUserIdAndSymbols(userId, symbols);
 

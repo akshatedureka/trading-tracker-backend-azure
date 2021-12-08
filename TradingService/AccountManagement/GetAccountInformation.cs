@@ -7,21 +7,19 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using TradingService.AccountManagement.Enums;
-using TradingService.AccountManagement.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
+using TradingService.Core.Enums;
 
 namespace TradingService.AccountManagement
 {
     public class GetAccountInformation
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly IAccountItemRepository _accountRepo;
 
-        public GetAccountInformation(IRepository repository, IQueries queries)
+        public GetAccountInformation(IAccountItemRepository accountRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _accountRepo = accountRepo;
         }
 
         [FunctionName("GetAccountInformation")]
@@ -37,13 +35,10 @@ namespace TradingService.AccountManagement
                 return new BadRequestObjectResult("User id has not been provided.");
             }
 
-            const string containerId = "Accounts";
-
             try
             {
-                var container = await _repository.GetContainer(containerId);
-                var account = container.GetItemLinqQueryable<Account>(allowSynchronousQueryExecution: true)
-                    .Where(u => u.UserId == userId).ToList().FirstOrDefault();
+                var accounts = await _accountRepo.GetItemsAsyncByUserId(userId);
+                var account = accounts.FirstOrDefault();
 
                 // ToDo: Check if email address changed, if so, update it
 
@@ -60,9 +55,8 @@ namespace TradingService.AccountManagement
                     AccountType = AccountTypes.NotSet
                 };
 
-                var newAccountResponse = await container.CreateItemAsync(accountToCreate,
-                        new PartitionKey(accountToCreate.UserId));
-                return new OkObjectResult(newAccountResponse.Resource.ToString());
+                var newAccountResponse = await _accountRepo.AddItemAsync(accountToCreate);
+                return new OkObjectResult(newAccountResponse.ToString());
             }
             catch (CosmosException ex)
             {

@@ -4,19 +4,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
 using Microsoft.Extensions.Configuration;
-using TradingService.AccountManagement.Enums;
 using TradingService.Common.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Enums;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.Common.Order
 {
     public class TradeOrder : ITradeOrder
     {
-        private readonly IQueries _queries;
-
-        public TradeOrder(IQueries queries)
+        private readonly IAccountItemRepository _accountRepo;
+        //ToDo: Add configuration here and stop passing it into each method
+        public TradeOrder(IAccountItemRepository accountRepo)
         {
-            _queries = queries;
+            _accountRepo = accountRepo;
         }
 
         public async Task<Guid> CreateMarketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity)
@@ -208,7 +208,7 @@ namespace TradingService.Common.Order
         public async Task<ClosedBlock> CloseOpenPositionAndCancelExistingOrders(IConfiguration config, string userId, string symbol)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
-            var accountType = await _queries.GetAccountTypeByUserId(userId);
+            var accountType = await _accountRepo.GetAccountTypeByUserId(userId);
 
             try
             {
