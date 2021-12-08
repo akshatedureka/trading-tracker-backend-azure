@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using TradingService.Core.Entities;
+﻿using TradingService.Core.Entities;
 
 namespace TradingService.Core.Interfaces.Persistence
 {

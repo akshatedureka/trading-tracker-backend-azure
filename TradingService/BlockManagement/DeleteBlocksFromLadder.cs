@@ -9,21 +9,23 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.BlockManagement.Models;
-using TradingService.Common.Models;
+//using TradingService.BlockManagement.Models;
+//using TradingService.Common.Models;
+using TradingService.Core.Entities;
 using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.BlockManagement
 {
     public class DeleteBlocksFromLadder
     {
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
+        private readonly IBlockItemRepository _blockRepo;
+        private readonly ILadderItemRepository _ladderRepo;
 
-        public DeleteBlocksFromLadder(IRepository repository, IQueries queries)
+        public DeleteBlocksFromLadder(IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo)
         {
-            _repository = repository;
-            _queries = queries;
+            _blockRepo = blockRepo;
+            _ladderRepo = ladderRepo;
         }
 
         [FunctionName("DeleteBlocksFromLadder")]
@@ -43,16 +45,16 @@ namespace TradingService.BlockManagement
 
             try
             {
-                const string containerIdForLadders = "Ladders";
-                var containerForLadders = await _repository.GetContainer(containerIdForLadders);
+                var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, ladder.Symbol);
 
-
-                var success = await _queries.DeleteBlocksByUserIdAndSymbol(userId, ladder.Symbol);
-
+                foreach (var block in blocks)
+                {
+                    await _blockRepo.DeleteItemAsync(block);
+                }
 
                 // Update ladder to indicate blocks have been deleted
-                var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
-                    .Where(l => l.UserId == userId).ToList().FirstOrDefault();
+                var userLadders = await _ladderRepo.GetItemsAsyncByUserId(userId);
+                var userLadder = userLadders.FirstOrDefault();
 
                 if (userLadder == null) return new NotFoundObjectResult($"Ladder was not found for symbol {ladder.Symbol}.");
 
@@ -67,10 +69,9 @@ namespace TradingService.BlockManagement
                     return new NotFoundObjectResult("Symbol not found in User Ladder.");
                 }
 
-                var updateLadderResponse = await containerForLadders.ReplaceItemAsync(userLadder, userLadder.Id,
-                    new PartitionKey(userLadder.UserId));
+                var updateLadderResponse = await _ladderRepo.UpdateItemAsync(userLadder);
 
-                return new OkObjectResult(updateLadderResponse.Resource.ToString());
+                return new OkObjectResult(updateLadderResponse.ToString());
             }
             catch (CosmosException ex)
             {

@@ -11,12 +11,11 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
-using TradingService.BlockManagement.Models;
-using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
-using TradingService.AccountManagement.Models;
 using TradingService.AccountManagement.Enums;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
 
 namespace TradingService.BlockManagement
 {
@@ -26,13 +25,17 @@ namespace TradingService.BlockManagement
         private readonly IQueries _queries;
         private readonly IRepository _repository;
         private readonly ITradeOrder _order;
+        private readonly IBlockItemRepository _blockRepo;
+        private readonly ILadderItemRepository _ladderRepo;
 
-        public CreateBlocksFromLadder(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
+        public CreateBlocksFromLadder(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order, IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo)
         {
             _configuration = configuration;
             _repository = repository;
             _queries = queries;
             _order = order;
+            _blockRepo = blockRepo;
+            _ladderRepo = ladderRepo;
         }
 
         [FunctionName("CreateBlocksFromLadder")]
@@ -53,11 +56,7 @@ namespace TradingService.BlockManagement
             }
 
             // Connect to Blocks container in Cosmos DB
-            const string containerId = "Blocks";
-            const string containerIdForLadders = "Ladders";
             const string containerIdForAccounts = "Accounts";
-            var container = await _repository.GetContainer(containerId);
-            var containerForLadders = await _repository.GetContainer(containerIdForLadders);
             var containerForAccounts = await _repository.GetContainer(containerIdForAccounts);
 
             // Get account type
@@ -83,31 +82,25 @@ namespace TradingService.BlockManagement
 
             try
             {
-                var blocks = new List<Block>();
-
                 // Create a list of blocks to save based on the block prices
                 foreach (var blockPrice in blockPrices)
                 {
                     var block = new Block
                     {
-                        Id = Guid.NewGuid().ToString(),
                         UserId = userId,
                         Symbol = ladderData.Symbol,
                         NumShares = ladderData.NumSharesPerBlock,
-                        DateCreated = DateTime.Now,
                         ConfidenceLevel = initialConfidenceLevel,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
                         StopLossOrderPrice = blockPrice.StopLossPrice
                     };
 
-                    blocks.Add(block);
+                    await _blockRepo.AddItemAsync(block);
                 }
 
-                var success = await _queries.CreateBlocks(blocks);
-
-                var userLadder = containerForLadders.GetItemLinqQueryable<UserLadder>(allowSynchronousQueryExecution: true)
-                .Where(l => l.UserId == userId).ToList().FirstOrDefault();
+                var userLadders = await _ladderRepo.GetItemsAsyncByUserId(userId);
+                var userLadder = userLadders.FirstOrDefault();
 
                 if (userLadder == null) return new NotFoundObjectResult("User Ladder not found.");
 
@@ -122,10 +115,9 @@ namespace TradingService.BlockManagement
                     return new NotFoundObjectResult("Symbol not found in User Ladder.");
                 }
 
-                var updateLadderResponse = await containerForLadders.ReplaceItemAsync(userLadder, userLadder.Id,
-                    new PartitionKey(userLadder.UserId));
+                var updateLadderResponse = await _ladderRepo.UpdateItemAsync(userLadder);
 
-                return new OkObjectResult(updateLadderResponse.Resource.ToString());
+                return new OkObjectResult(updateLadderResponse.ToString());
             }
             catch (CosmosException ex)
             {
@@ -139,9 +131,9 @@ namespace TradingService.BlockManagement
             }
         }
 
-        private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
+        private List<Models.BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
-            var blockPrices = new List<BlockPrices>();
+            var blockPrices = new List<Models.BlockPrices>();
             const int numBlocks = 200;
 
             // Calculate range up
@@ -156,7 +148,7 @@ namespace TradingService.BlockManagement
                     stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
                 }
 
-                var blockItemUp = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
+                var blockItemUp = new Models.BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
                 blockPrices.Add(blockItemUp);
             }
 
@@ -172,7 +164,7 @@ namespace TradingService.BlockManagement
                     stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
                 }
 
-                var blockItemDown = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
+                var blockItemDown = new Models.BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
                 blockPrices.Add(blockItemDown);
             }
 

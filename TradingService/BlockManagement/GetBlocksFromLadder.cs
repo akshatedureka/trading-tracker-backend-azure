@@ -7,18 +7,19 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Cosmos;
-using TradingService.Common.Repository;
-using TradingService.Common.Models;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
+using System.Collections.Generic;
 
 namespace TradingService.BlockManagement
 {
     public class GetBlocksFromLadder
     {
-        private readonly IQueries _queries;
+        private readonly IBlockItemRepository _blockRepo;
 
-        public GetBlocksFromLadder(IRepository repository, IQueries queries)
+        public GetBlocksFromLadder(IBlockItemRepository blockRepo)
         {
-            _queries = queries;
+            _blockRepo = blockRepo;
         }
 
         [FunctionName("GetBlocksFromLadder")]
@@ -37,12 +38,11 @@ namespace TradingService.BlockManagement
                 return new BadRequestObjectResult("Required data is missing from request.");
             }
 
-
             // Read blocks from Cosmos DB
             try
             {
-                var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
-                return blocks != null ? new OkObjectResult(blocks) : new OkObjectResult("No blocks found for user and symbol.");
+                var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
+                return blocks.Count != 0 ? new OkObjectResult(blocks) : new OkObjectResult(new List<Block>());
             }
             catch (CosmosException ex)
             {

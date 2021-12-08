@@ -36,9 +36,9 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
             return newItem;
         }
 
-        public Task DeleteItemAsync(string id)
+        public async Task DeleteItemAsync(T item)
         {
-            throw new NotImplementedException();
+            await _container.DeleteItemAsync<T>(item.Id, ResolvePartitionKey(item.UserId));
         }
 
         public async Task<T> GetItemAsync(string id)
@@ -64,6 +64,23 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
         {
             string query = @$"SELECT * FROM c WHERE c.userId = @UserId";
             QueryDefinition queryDefinition = new QueryDefinition(query).WithParameter("@UserId", userId);
+
+            FeedIterator<T> resultSetIterator = _container.GetItemQueryIterator<T>(queryDefinition);
+            List<T> results = new List<T>();
+            while (resultSetIterator.HasMoreResults)
+            {
+                FeedResponse<T> response = await resultSetIterator.ReadNextAsync();
+
+                results.AddRange(response.ToList());
+            }
+
+            return results;
+        }
+
+        public async Task<List<T>> GetItemsAsyncByUserIdAndSymbol(string userId, string symbol)
+        {
+            string query = @$"SELECT * FROM c WHERE c.userId = @UserId AND c.symbol = @Symbol";
+            QueryDefinition queryDefinition = new QueryDefinition(query).WithParameter("@UserId", userId).WithParameter("@Symbol", symbol);
 
             FeedIterator<T> resultSetIterator = _container.GetItemQueryIterator<T>(queryDefinition);
             List<T> results = new List<T>();
