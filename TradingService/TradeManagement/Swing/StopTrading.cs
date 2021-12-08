@@ -45,6 +45,9 @@ namespace TradingService.TradeManagement.Swing
                 var closedBlock = await _order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
                 if (closedBlock is null) // ToDo: split closing orders and positions. There may not be any open positions. Handle this error so that other real errors get caught and returned to the user.
                 {
+                    // Reset blocks
+                    await _queries.ResetUserBlocksByUserIdAndSymbol(userId, symbol);
+
                     log.LogInformation("No open positions.");
                     return new OkObjectResult("There are no open positions to close.");
                 }

@@ -44,10 +44,11 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
             var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol);
             long openPositionQty = 0;
             var openPositions = await _order.GetOpenPositions(_configuration, userId);
+            var openPositionForSymbol = openPositions.Where(p => p.Symbol == symbol).FirstOrDefault();
 
-            if (openPositions.Count > 0)
+            if (openPositionForSymbol != null)
             {
-                openPositionQty = openPositions.Where(p => p.Symbol == symbol).FirstOrDefault().IntegerQuantity;
+                openPositionQty = openPositionForSymbol.IntegerQuantity;
             }
 
             var ladders = await _queries.GetLaddersByUserId(userId);
@@ -116,10 +117,11 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
             var currentPrice = await _order.GetCurrentPrice(_configuration, userId, symbol);
             long openPositionQty = 0;
             var openPositions = await _order.GetOpenPositions(_configuration, userId);
+            var openPositionForSymbol = openPositions.Where(p => p.Symbol == symbol).FirstOrDefault();
 
-            if (openPositions.Count > 0)
+            if (openPositionForSymbol != null)
             {
-                openPositionQty = openPositions.Where(p => p.Symbol == symbol).FirstOrDefault().IntegerQuantity;
+                openPositionQty = Math.Abs(openPositionForSymbol.IntegerQuantity);
             }
 
             var ladders = await _queries.GetLaddersByUserId(userId);
