@@ -9,10 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-//using TradingService.BlockManagement.Models;
-//using TradingService.Common.Models;
 using TradingService.Core.Entities;
-using TradingService.Common.Repository;
 using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.BlockManagement
