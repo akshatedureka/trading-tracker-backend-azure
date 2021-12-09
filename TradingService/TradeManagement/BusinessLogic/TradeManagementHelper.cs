@@ -10,9 +10,9 @@ using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.Core.Interfaces.Persistence;
-using TradingService.TradeManagement.Swing.Common;
+using TradingService.TradeManagement.Common;
 
-namespace TradingService.TradeManagement.Swing.BusinessLogic
+namespace TradingService.TradeManagement.BusinessLogic
 {
     public class TradeManagementHelper : ITradeManagementHelper
     {
@@ -55,7 +55,7 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
             var userLadders = await _ladderRepo.GetItemsAsyncByUserId(userId);
             var maxNumShares = userLadders.FirstOrDefault().Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
 
-            if (openPositionQty < maxNumShares)
+            if (openPositionQty < maxNumShares) // ToDo: This goes over by one block because it is creating two orders at a time e.g. 360 total shares is < 400, creating two orders of 40 goes to 440 shares
             {
                 // Get blocks above and below the current price to create buy orders
                 var blocksAbove = GetLongBlocksAboveCurrentPriceByPercentage(blocks, currentPrice, 5);
@@ -191,7 +191,7 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
             // Buy order has been executed, update block to record buy order has been filled
             log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
-            // Get swing trade block
+            // Get trade block
             var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
             // Update block designating buy order has been executed
@@ -220,7 +220,7 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
             // Sell order has been executed, create new buy order in Alpaca, close and reset block
             log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
-            // Get swing trade block
+            // Get trade block
             var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
             // Update block designating buy order has been executed
@@ -262,9 +262,9 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
         public async Task UpdateShortSellOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedSellPrice, ILogger log)
         {
             // Sell order has been executed, create new buy order in Alpaca, close and reset block
-            log.LogInformation($"Sell order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
+            log.LogInformation($"Sell order executed for short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
-            // Get swing trade blocks
+            // Get trade blocks
             var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
             // Update block designating sell order has been executed
@@ -291,9 +291,9 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
         public async Task UpdateShortBuyOrderExecuted(string userId, string symbol, Guid externalOrderId, decimal executedBuyPrice, ILogger log)
         {
             // Buy order has been executed, update block to record buy order has been filled
-            log.LogInformation($"Buy order executed for swing short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
+            log.LogInformation($"Buy order executed for short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
-            // Get swing trade block
+            // Get block
             var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
 
             var blockToUpdate = blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);

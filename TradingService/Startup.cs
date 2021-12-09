@@ -9,7 +9,7 @@ using TradingService.Core.Interfaces.Persistence;
 using TradingService.Infrastructure.AppSettings;
 using TradingService.Infrastructure.CosmosDbData.Repository;
 using TradingService.Infrastructure.Extensions;
-using TradingService.TradeManagement.Swing.BusinessLogic;
+using TradingService.TradeManagement.BusinessLogic;
 
 [assembly: FunctionsStartup(typeof(TradingService.Startup))]
 

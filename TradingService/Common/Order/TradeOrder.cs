@@ -119,22 +119,6 @@ namespace TradingService.Common.Order
             }
         }
 
-        public async Task<decimal> GetPreviousDayClose(IConfiguration config, string userId, string symbol)
-        {
-            try
-            {
-                var alpacaDataClient = GetAlpacaDataClient(config, userId);
-
-                var snapshot = await alpacaDataClient.GetSnapshotAsync(symbol);
-                return snapshot.PreviousDailyBar.Close;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
-        }
-
         public async Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
@@ -248,10 +232,10 @@ namespace TradingService.Common.Order
                     ExternalBuyOrderId = new Guid(),
                     ExternalSellOrderId = result.OrderId,
                     ExternalStopLossOrderId = new Guid(),
-                    BuyOrderFilledPrice = accountType == AccountTypes.SwingLong ? positionData.AverageEntryPrice : positionData.AssetCurrentPrice,
+                    BuyOrderFilledPrice = accountType == AccountTypes.Long ? positionData.AverageEntryPrice : positionData.AssetCurrentPrice,
                     DateBuyOrderFilled = DateTime.Now,
                     DateSellOrderFilled = DateTime.Now,
-                    SellOrderFilledPrice = accountType == AccountTypes.SwingLong ? positionData.AssetCurrentPrice : positionData.AverageEntryPrice,
+                    SellOrderFilledPrice = accountType == AccountTypes.Long ? positionData.AssetCurrentPrice : positionData.AverageEntryPrice,
                     Profit = positionData.UnrealizedProfitLoss // Actual profit / loss
                 };
 

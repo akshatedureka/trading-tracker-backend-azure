@@ -43,9 +43,6 @@ namespace TradingService.SymbolManagement
             {
                 Id = Guid.NewGuid().ToString(),
                 DateCreated = DateTime.Now,
-                NumShares = symbolTransfer.NumShares,
-                TakeProfitOffset = symbolTransfer.TakeProfitOffset,
-                StopLossOffset = symbolTransfer.StopLossOffset,
                 Name = symbolTransfer.Name,
                 Active = symbolTransfer.Active
             };

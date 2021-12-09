@@ -20,10 +20,9 @@ namespace TradeUpdateService
                 .UseSimpleAssemblyNameTypeSerializer()
                 .UseDefaultTypeSerializer()
                 .UseMemoryStorage(new MemoryStorageOptions { FetchNextJobTimeout = TimeSpan.FromDays(1) })); // Must set or else jobs will reprocess automatically after 30 minutes; If using db option, need to set invisibility timeout property
-            services.AddHangfireServer(); // 20 workers max for right now
+            services.AddHangfireServer(options => { options.WorkerCount = Environment.ProcessorCount * 10; }); // Max workers
             services.AddSingleton<IConnectUsers, ConnectUsers>();
             services.AddScoped<ITradeUpdateListener, TradeUpdateListener>();
-            services.AddSingleton<IDayTrading, DayTrading>();
             services.AddSingleton<ICreateOrders, CreateOrders>();
             services.AddSingleton<IUpdateBlockRange, UpdateBlockRange>();
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
@@ -51,8 +50,7 @@ namespace TradeUpdateService
 
             BackgroundJob.Enqueue<IConnectUsers>(x => x.GetUsersToConnect()); // run immediately, then on a schedule to check for new users
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
-            RecurringJob.AddOrUpdate<IDayTrading>(x => x.TriggerDayTrades(), "*/5 * * * *"); // every 5 minutes
-            RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/15 * * * * *"); // every 15 seconds
+            RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/30 * * * * *"); // every 30 seconds
             RecurringJob.AddOrUpdate<IUpdateBlockRange>(x => x.CreateUpdateBlockRangeMessage(), Cron.Hourly);
         }
     }

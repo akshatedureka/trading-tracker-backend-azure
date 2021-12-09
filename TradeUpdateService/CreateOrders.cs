@@ -41,12 +41,12 @@ namespace TradeUpdateService
             var connectionString = _configuration.GetValue<string>("AzureWebJobsStorageRemote");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
-            var queueClientLong = new QueueClient(connectionString, "swinglongorderqueue");
-            var queueClientShort = new QueueClient(connectionString, "swingshortorderqueue");
+            var queueClientLong = new QueueClient(connectionString, "longorderqueue");
+            var queueClientShort = new QueueClient(connectionString, "shortorderqueue");
             await queueClientLong.CreateIfNotExistsAsync();
             await queueClientShort.CreateIfNotExistsAsync();
 
-            foreach (var account in accounts.Where(account => account.AccountType == AccountTypes.SwingLong || account.AccountType == AccountTypes.SwingShort))
+            foreach (var account in accounts)
             {
                 // Read symbols for user from Cosmos DB
                 var userSymbolResponse = containerSymbols
@@ -68,7 +68,7 @@ namespace TradeUpdateService
                             OrderMessageType = OrderMessageTypes.Create
                         };
 
-                        if (account.AccountType == AccountTypes.SwingLong)
+                        if (account.AccountType == AccountTypes.Long)
                         {
                             await queueClientLong.SendMessageAsync(Base64Encode(JsonConvert.SerializeObject(msg)));
                         }

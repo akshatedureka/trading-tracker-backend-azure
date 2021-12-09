@@ -136,7 +136,7 @@ namespace TradingService.BlockManagement
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
                 var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
 
-                if (accountType == AccountTypes.SwingShort)
+                if (accountType == AccountTypes.Short)
                 {
                     stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
                 }
@@ -152,7 +152,7 @@ namespace TradingService.BlockManagement
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
                 var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
 
-                if (accountType == AccountTypes.SwingShort)
+                if (accountType == AccountTypes.Short)
                 {
                     stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
                 }

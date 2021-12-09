@@ -11,10 +11,10 @@ using Newtonsoft.Json;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
-using TradingService.TradeManagement.Swing.BusinessLogic;
-using TradingService.TradeManagement.Swing.Models;
+using TradingService.TradeManagement.BusinessLogic;
+using TradingService.TradeManagement.Models;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
     public class ProcessShortOrderMessage
     {
@@ -34,7 +34,7 @@ namespace TradingService.TradeManagement.Swing
         }
 
         [FunctionName("ProcessShortOrderMessage")]
-        public async Task Run([QueueTrigger("swingshortorderqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
+        public async Task Run([QueueTrigger("shortorderqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
             var message = JsonConvert.DeserializeObject<OrderMessage>(myQueueItem);
             var userId = message.UserId;

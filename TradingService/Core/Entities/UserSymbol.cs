@@ -21,14 +21,8 @@ namespace TradingService.Core.Entities
         public string Name { get; set; }
         [JsonProperty(PropertyName = "active")]
         public bool Active { get; set; }
-        [JsonProperty(PropertyName = "numShares")]
-        public long NumShares { get; set; }
         [JsonProperty(PropertyName = "trading")]
         public bool Trading { get; set; }
-        [JsonProperty(PropertyName = "takeProfitOffset")]
-        public decimal TakeProfitOffset { get; set; }
-        [JsonProperty(PropertyName = "stopLossOffset")]
-        public decimal StopLossOffset { get; set; }
 
         public override string ToString()
         {

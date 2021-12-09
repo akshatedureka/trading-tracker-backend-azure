@@ -1,5 +1,5 @@
 ﻿
-namespace TradingService.TradeManagement.Swing.Enums
+namespace TradingService.TradeManagement.Enums
 {
     public enum OrderMessageTypes
     {

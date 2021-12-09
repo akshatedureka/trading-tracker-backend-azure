@@ -31,7 +31,7 @@ namespace TradingService.BlockManagement
         }
 
         [FunctionName("UpdateBlockRange")]
-        public async Task Run([QueueTrigger("swingupdateblockrangequeue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
+        public async Task Run([QueueTrigger("updateblockrangequeue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
             var message = JsonConvert.DeserializeObject<Models.UpdateBlockRangeMessage>(myQueueItem);
             var userId = message.UserId;
@@ -137,7 +137,7 @@ namespace TradingService.BlockManagement
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
                 var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
 
-                if (accountType == AccountTypes.SwingShort)
+                if (accountType == AccountTypes.Short)
                 {
                     stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
                 }
@@ -153,7 +153,7 @@ namespace TradingService.BlockManagement
                 var sellPrice = buyPrice + buyPrice * (sellPercentage / 100);
                 var stopLossPrice = buyPrice - buyPrice * (stopLossPercentage / 100);
 
-                if (accountType == AccountTypes.SwingShort)
+                if (accountType == AccountTypes.Short)
                 {
                     stopLossPrice = sellPrice + sellPrice * (stopLossPercentage / 100);
                 }

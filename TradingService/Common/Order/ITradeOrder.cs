@@ -24,8 +24,6 @@ namespace TradingService.Common.Order
 
         public Task<decimal> GetCurrentPrice(IConfiguration config, string userId, string symbol);
 
-        public Task<decimal> GetPreviousDayClose(IConfiguration config, string userId, string symbol);
-
         public Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId);
 
         public Task<List<IPosition>> GetOpenPositions(IConfiguration config, string userId);

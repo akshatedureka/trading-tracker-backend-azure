@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using TradingService.Common.Models;
 
-namespace TradingService.TradeManagement.Swing.BusinessLogic
+namespace TradingService.TradeManagement.BusinessLogic
 {
     public interface ITradeManagementHelper
     {

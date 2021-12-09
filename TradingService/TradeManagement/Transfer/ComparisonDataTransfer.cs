@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 
 
-namespace TradingService.TradeManagement.Swing.Transfer
+namespace TradingService.TradeManagement.Transfer
 {
     public class ComparisonDataTransfer
     {

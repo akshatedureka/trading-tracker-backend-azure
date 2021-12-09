@@ -51,9 +51,6 @@ namespace TradingService.SymbolManagement
                     symbolToUpdate.Name = symbolTransfer.Name;
                     symbolToUpdate.Active = symbolTransfer.Active;
                     symbolToUpdate.Trading = symbolTransfer.Trading;
-                    symbolToUpdate.NumShares = symbolTransfer.NumShares;
-                    symbolToUpdate.TakeProfitOffset = symbolTransfer.TakeProfitOffset;
-                    symbolToUpdate.StopLossOffset = symbolTransfer.StopLossOffset;
                 }
                 else
                 {

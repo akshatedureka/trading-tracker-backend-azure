@@ -7,24 +7,24 @@ using Newtonsoft.Json;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
-    public class CloseSwingBlockFromQueueMsg
+    public class CloseBlockFromQueueMsg
     {
         private readonly IQueries _queries;
         private readonly IRepository _repository;
 
-        public CloseSwingBlockFromQueueMsg(IRepository repository, IQueries queries)
+        public CloseBlockFromQueueMsg(IRepository repository, IQueries queries)
         {
             _repository = repository;
             _queries = queries;
         }
 
-        [FunctionName("CloseSwingBlockFromQueueMsg")]
-        public async Task Run([QueueTrigger("closeswingblockqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
+        [FunctionName("CloseBlockFromQueueMsg")]
+        public async Task Run([QueueTrigger("closeblockqueue", Connection = "AzureWebJobsStorageRemote")] string myQueueItem, ILogger log)
         {
             var closeBlockMessage = JsonConvert.DeserializeObject<ClosedBlockMessage>(myQueueItem);
-            log.LogInformation($"CloseSwingBlockFromQueueMsg triggered for user {closeBlockMessage.UserId}, symbol {closeBlockMessage.Symbol}, block id {closeBlockMessage.BlockId}.");
+            log.LogInformation($"CloseBlockFromQueueMsg triggered for user {closeBlockMessage.UserId}, symbol {closeBlockMessage.Symbol}, block id {closeBlockMessage.BlockId}.");
 
             const string containerId = "BlocksClosed";
             var container = await _repository.GetContainer(containerId);

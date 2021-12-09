@@ -11,20 +11,20 @@ using TradingService.Common.Order;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
 using Alpaca.Markets;
-using TradingService.TradeManagement.Swing.Transfer;
+using TradingService.TradeManagement.Transfer;
 using TradingService.Core.Interfaces.Persistence;
 using TradingService.Core.Enums;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
-    public class GetComparisonDataSwing
+    public class GetComparisonData
     {
         private readonly IConfiguration _configuration;
         private readonly IQueries _queries;
         private readonly ITradeOrder _order;
         private readonly IAccountItemRepository _accountRepo;
 
-        public GetComparisonDataSwing(IConfiguration configuration, IQueries queries, ITradeOrder order, IAccountItemRepository accountRepo)
+        public GetComparisonData(IConfiguration configuration, IQueries queries, ITradeOrder order, IAccountItemRepository accountRepo)
         {
             _configuration = configuration;
             _queries = queries;
@@ -32,7 +32,7 @@ namespace TradingService.TradeManagement.Swing
             _accountRepo = accountRepo;
         }
 
-        [FunctionName("GetComparisonDataSwing")]
+        [FunctionName("GetComparisonData")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
             ILogger log)
@@ -62,7 +62,7 @@ namespace TradingService.TradeManagement.Swing
                 var openBuyOrderBlocks = new List<Block>();
                 var openSellOrderBlocks = new List<Block>();
 
-                if (accountType == AccountTypes.SwingLong)
+                if (accountType == AccountTypes.Long)
                 {
                     openBuyOrderBlocks = blocks.Where(b => (b.BuyOrderCreated && !b.SellOrderCreated) && b.Symbol == symbol.Name).ToList();
                     openSellOrderBlocks = blocks.Where(b => b.SellOrderCreated && b.Symbol == symbol.Name).ToList();

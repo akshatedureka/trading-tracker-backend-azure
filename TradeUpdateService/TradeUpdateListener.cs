@@ -33,17 +33,11 @@ namespace TradeUpdateService
 
             switch (accountType)
             {
-                case AccountTypes.SwingLong:
-                    queueName = "swinglongorderqueue";
+                case AccountTypes.Long:
+                    queueName = "longorderqueue";
                     break;
-                case AccountTypes.SwingShort:
-                    queueName = "swingshortorderqueue";
-                    break;
-                case AccountTypes.DayLong:
-                    queueName = "tradeupdatequeuedaymarket";
-                    break;
-                case AccountTypes.DayShort:
-                    queueName = "tradeupdatequeuedaymarket";
+                case AccountTypes.Short:
+                    queueName = "shortorderqueue";
                     break;
                 default:
                     break;

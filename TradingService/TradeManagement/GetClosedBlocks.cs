@@ -12,7 +12,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using TradingService.Common.Models;
 using TradingService.Common.Repository;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
     public class GetClosedBlocks
     {

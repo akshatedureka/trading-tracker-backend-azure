@@ -41,10 +41,10 @@ namespace TradeUpdateService
             var connectionString = _configuration.GetValue<string>("AzureWebJobsStorageRemote");
 
             // Instantiate a QueueClient which will be used to create and manipulate the queue
-            var queueClient = new QueueClient(connectionString, "swingupdateblockrangequeue");
+            var queueClient = new QueueClient(connectionString, "updateblockrangequeue");
             await queueClient.CreateIfNotExistsAsync();
 
-            foreach (var account in accounts.Where(account => account.AccountType == AccountTypes.SwingLong || account.AccountType == AccountTypes.SwingShort))
+            foreach (var account in accounts)
             {
                 // Read symbols for user from Cosmos DB
                 var userSymbolResponse = containerSymbols

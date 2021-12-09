@@ -10,7 +10,7 @@ using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
     public class StopTrading
     {
@@ -34,7 +34,7 @@ namespace TradingService.TradeManagement.Swing
             string symbol = req.Query["symbol"];
             var userId = req.Headers["From"].FirstOrDefault();
 
-            log.LogInformation($"Function executed to stop swing trading for user {userId} and symbol {symbol}.");
+            log.LogInformation($"Function executed to stop trading for user {userId} and symbol {symbol}.");
                                 
             try
             {

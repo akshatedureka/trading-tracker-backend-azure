@@ -5,7 +5,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
     public static class GetOpenPositions
     {

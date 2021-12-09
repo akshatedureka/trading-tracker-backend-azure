@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TradingService.Common.Models;
 
-namespace TradingService.TradeManagement.Swing.Common
+namespace TradingService.TradeManagement.Common
 {
     public class TradeManagementCommon
     {
@@ -15,7 +15,7 @@ namespace TradingService.TradeManagement.Swing.Common
         {
             // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
-            var queueName = "closeswingblockqueue";
+            var queueName = "closeblockqueue";
             var queueClient = new QueueClient(connectionString, queueName);
             queueClient.CreateIfNotExists();
             var msg = new ClosedBlockMessage()
@@ -41,7 +41,7 @@ namespace TradingService.TradeManagement.Swing.Common
         {
             // Place an closed block msg on the queue
             var connectionString = config.GetValue<string>("AzureWebJobsStorageRemote");
-            var queueName = "resetswingblockqueue";
+            var queueName = "resetblockqueue";
             var queueClient = new QueueClient(connectionString, queueName);
             queueClient.CreateIfNotExists();
             var msg = new ResetBlockMessage()

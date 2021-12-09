@@ -13,19 +13,18 @@ using System.Threading.Tasks;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
-using TradingService.SymbolManagement.Models;
-using TradingService.TradeManagement.Swing.Transfer;
+using TradingService.TradeManagement.Transfer;
 
-namespace TradingService.TradeManagement.Swing
+namespace TradingService.TradeManagement
 {
-    public class GetTradingDataSwing
+    public class GetTradingData
     {
         private readonly IConfiguration _configuration;
         private readonly IQueries _queries;
         private readonly IRepository _repository;
         private readonly ITradeOrder _order;
 
-        public GetTradingDataSwing(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
+        public GetTradingData(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
         {
             _configuration = configuration;
             _repository = repository;
@@ -33,7 +32,7 @@ namespace TradingService.TradeManagement.Swing
             _order = order;
         }
 
-        [FunctionName("GetTradingDataSwing")]
+        [FunctionName("GetTradingData")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
             ILogger log)
