@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using TradingService.Common.Models;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
 using TradingService.TradeManagement.Swing.Common;
 
 namespace TradingService.TradeManagement.Swing.BusinessLogic
@@ -17,15 +18,15 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
     {
         private readonly IConfiguration _configuration;
         private readonly IQueries _queries;
-        private readonly IRepository _repository;
         private readonly ITradeOrder _order;
+        private readonly ILadderItemRepository _ladderRepo;
 
-        public TradeManagementHelper(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
+        public TradeManagementHelper(IConfiguration configuration, IQueries queries, ITradeOrder order, ILadderItemRepository ladderRepo)
         {
             _configuration = configuration;
-            _repository = repository;
             _queries = queries;
             _order = order;
+            _ladderRepo = ladderRepo;
         }
 
         public List<Block> GetBlocksWithoutOpenOrders()
@@ -51,8 +52,8 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
                 openPositionQty = openPositionForSymbol.IntegerQuantity;
             }
 
-            var ladders = await _queries.GetLaddersByUserId(userId);
-            var maxNumShares = ladders.Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
+            var userLadders = await _ladderRepo.GetItemsAsyncByUserId(userId);
+            var maxNumShares = userLadders.FirstOrDefault().Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
 
             if (openPositionQty < maxNumShares)
             {
@@ -124,8 +125,8 @@ namespace TradingService.TradeManagement.Swing.BusinessLogic
                 openPositionQty = Math.Abs(openPositionForSymbol.IntegerQuantity);
             }
 
-            var ladders = await _queries.GetLaddersByUserId(userId);
-            var maxNumShares = ladders.Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
+            var userLadders = await _ladderRepo.GetItemsAsyncByUserId(userId);
+            var maxNumShares = userLadders.FirstOrDefault().Ladders.Where(l => l.Symbol == symbol).FirstOrDefault().NumSharesMax;
 
             if (openPositionQty < maxNumShares)
             {
