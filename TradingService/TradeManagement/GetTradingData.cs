@@ -12,25 +12,29 @@ using System.Linq;
 using System.Threading.Tasks;
 using TradingService.Core.Entities;
 using TradingService.Common.Order;
-using TradingService.Common.Repository;
 using TradingService.TradeManagement.Transfer;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.TradeManagement
 {
     public class GetTradingData
     {
         private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
         private readonly ITradeOrder _order;
+        private readonly ISymbolItemRepository _symbolRepo;
+        private readonly ILadderItemRepository _ladderRepo;
+        private readonly IBlockClosedItemRepository _blockClosedRepo;
+        private readonly IBlockCondensedItemRepository _blockCondensedRepo;
 
-        public GetTradingData(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
+        public GetTradingData(IConfiguration configuration, ITradeOrder order, ISymbolItemRepository symbolRepo, ILadderItemRepository ladderRepo, IBlockClosedItemRepository blockClosedRepo, IBlockCondensedItemRepository blockCondensedRepo)
         {
             _configuration = configuration;
-            _repository = repository;
-            _queries = queries;
             _order = order;
-        }
+            _symbolRepo = symbolRepo;
+            _ladderRepo = ladderRepo;
+            _blockClosedRepo = blockClosedRepo;
+            _blockCondensedRepo = blockCondensedRepo;
+    }
 
         [FunctionName("GetTradingData")]
         public async Task<IActionResult> Run(
@@ -40,15 +44,8 @@ namespace TradingService.TradeManagement
             log.LogInformation("C# HTTP trigger function processed a request to get symbols.");
             var userId = req.Headers["From"].FirstOrDefault();
 
-            // The name of the database and container we will create
-            const string containerIdForClosedBlocks = "BlocksClosed";
-            const string containerIdForCondensedlocks = "BlocksCondensed";
-
-            var containerForBlocksClosed = await _repository.GetContainer(containerIdForClosedBlocks);
-            var containerForBlocksCondensed = await _repository.GetContainer(containerIdForCondensedlocks);
-
             // Get symbol data
-            var userSymbol = await _queries.GetUserSymbolByUserId(userId);
+            var userSymbol = await _symbolRepo.GetItemsAsyncByUserId(userId);
 
             if (userSymbol == null)
             {
@@ -56,15 +53,15 @@ namespace TradingService.TradeManagement
             }
 
             // Get ladder data
-            var userLadder = await _queries.GetLaddersByUserId(userId);
+            var userLadder = await _ladderRepo.GetItemsAsyncByUserId(userId);
 
             if (userLadder == null)
             {
                 return new NoContentResult();
             }
 
-            var ladderswithBlocks = userLadder.Ladders.Where(l => l.BlocksCreated);
-            var symbolsWithBlocksCreated = (userSymbol.Symbols.SelectMany(symbol => ladderswithBlocks.Where(ladder => ladder.Symbol == symbol.Name).Select(ladder => symbol))).ToList();
+            var ladderswithBlocks = userLadder.FirstOrDefault().Ladders.Where(l => l.BlocksCreated);
+            var symbolsWithBlocksCreated = (userSymbol.FirstOrDefault().Symbols.SelectMany(symbol => ladderswithBlocks.Where(ladder => ladder.Symbol == symbol.Name).Select(ladder => symbol))).ToList();
 
             // Add symbol data to return object
             var tradingData = symbolsWithBlocksCreated.Select(symbol => new TradingData { SymbolId = symbol.Id, Symbol = symbol.Name, Active = symbol.Active, Trading = symbol.Trading }).ToList();
@@ -75,9 +72,7 @@ namespace TradingService.TradeManagement
             // Read closed blocks from Cosmos DB
             try
             {
-                closedBlocks = containerForBlocksClosed
-                    .GetItemLinqQueryable<ClosedBlock>(allowSynchronousQueryExecution: true)
-                    .Where(b => b.UserId == userId).ToList();
+                closedBlocks = await _blockClosedRepo.GetItemsAsyncByUserId(userId);
             }
             catch (CosmosException ex)
             {
@@ -96,9 +91,8 @@ namespace TradingService.TradeManagement
             // Read condensed blocks from Cosmos DB
             try
             {
-                condensedUserBlock = containerForBlocksCondensed
-                    .GetItemLinqQueryable<UserCondensedBlock>(allowSynchronousQueryExecution: true)
-                    .Where(b => b.UserId == userId).ToList().FirstOrDefault();
+                var condensedUserBlocks = await _blockCondensedRepo.GetItemsAsyncByUserId(userId);
+                condensedUserBlock = condensedUserBlocks.FirstOrDefault();
             }
             catch (CosmosException ex)
             {

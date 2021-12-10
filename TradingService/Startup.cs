@@ -4,7 +4,6 @@ using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TradingService.Common.Order;
-using TradingService.Common.Repository;
 using TradingService.Core.Interfaces.Persistence;
 using TradingService.Infrastructure.AppSettings;
 using TradingService.Infrastructure.CosmosDbData.Repository;
@@ -25,8 +24,6 @@ namespace TradingService
 
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddSingleton<IRepository, Repository>();
-            builder.Services.AddSingleton<IQueries, Queries>();
             builder.Services.AddScoped<ITradeOrder, TradeOrder>();
             builder.Services.AddScoped<ITradeManagementHelper, TradeManagementHelper>();
 
@@ -37,6 +34,8 @@ namespace TradingService
                 new ContainerInfo { Name = "Symbols", PartitionKey = "UserId" },
                 new ContainerInfo { Name = "Ladders", PartitionKey = "UserId" },
                 new ContainerInfo { Name = "Blocks", PartitionKey = "UserId" },
+                new ContainerInfo { Name = "BlocksClosed", PartitionKey = "UserId" },
+                new ContainerInfo { Name = "BlocksCondensed", PartitionKey = "UserId" },
                 new ContainerInfo { Name = "Accounts", PartitionKey = "UserId" }
             };
 
@@ -45,6 +44,8 @@ namespace TradingService
             builder.Services.AddScoped<ISymbolItemRepository, SymbolItemRepository>();
             builder.Services.AddScoped<ILadderItemRepository, LadderItemRepository>();
             builder.Services.AddScoped<IBlockItemRepository, BlockItemRepository>();
+            builder.Services.AddScoped<IBlockClosedItemRepository, BlockClosedItemRepository>();
+            builder.Services.AddScoped<IBlockCondensedItemRepository, BlockCondensedItemRepository>();
         }
     }
 }

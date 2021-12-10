@@ -8,23 +8,29 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
-using TradingService.Common.Repository;
+using TradingService.Core.Interfaces.Persistence;
+using TradingService.Core.Entities;
+using System.Collections.Generic;
 
 namespace TradingService.TradeManagement
 {
     public class StopTrading
     {
         private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
         private readonly ITradeOrder _order;
+        private readonly ISymbolItemRepository _symbolRepo;
+        private readonly IBlockItemRepository _blockRepo;
+        private readonly IBlockClosedItemRepository _blockClosedRepo;
+        private readonly IBlockCondensedItemRepository _blockCondensedRepo;
 
-        public StopTrading(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order)
+        public StopTrading(IConfiguration configuration, ITradeOrder order, ISymbolItemRepository symbolRepo, IBlockItemRepository blockRepo, IBlockClosedItemRepository blockClosedRepo, IBlockCondensedItemRepository blockCondensedRepo)
         {
             _configuration = configuration;
-            _repository = repository;
-            _queries = queries;
             _order = order;
+            _symbolRepo = symbolRepo;
+            _blockRepo = blockRepo;
+            _blockClosedRepo = blockClosedRepo;
+            _blockCondensedRepo = blockCondensedRepo;
         }
 
         [FunctionName("StopTrading")]
@@ -39,21 +45,44 @@ namespace TradingService.TradeManagement
             try
             {
                 // Turn trading off
-                var updateTradingStatusReponse = await _queries.UpdateTradingStatusForSymbol(userId, symbol);
+                var userSymbols = await _symbolRepo.GetItemsAsyncByUserId(userId);
+                var userSymbol = userSymbols.FirstOrDefault();
+
+                var symbolToUpdate = userSymbol.Symbols.FirstOrDefault(s => s.Name == symbol);
+                symbolToUpdate.Trading = false;
+
+                await _symbolRepo.UpdateItemAsync(userSymbol);
+
+                var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
                 // Cancel order and close positions, return closed block information
                 var closedBlock = await _order.CloseOpenPositionAndCancelExistingOrders(_configuration, userId, symbol);
                 if (closedBlock is null) // ToDo: split closing orders and positions. There may not be any open positions. Handle this error so that other real errors get caught and returned to the user.
                 {
                     // Reset blocks
-                    await _queries.ResetUserBlocksByUserIdAndSymbol(userId, symbol);
+                    foreach (var block in blocks.Where(b => b.BuyOrderCreated || b.SellOrderCreated))
+                    {
+                        block.ExternalBuyOrderId = new Guid();
+                        block.ExternalSellOrderId = new Guid();
+                        block.ExternalStopLossOrderId = new Guid();
+                        block.BuyOrderCreated = false;
+                        block.BuyOrderFilled = false;
+                        block.BuyOrderFilledPrice = 0;
+                        block.DateBuyOrderFilled = DateTime.MinValue;
+                        block.SellOrderCreated = false;
+                        block.SellOrderFilled = false;
+                        block.SellOrderFilledPrice = 0;
+                        block.DateSellOrderFilled = DateTime.MinValue;
+
+                        var updateBlock = await _blockRepo.UpdateItemAsync(block);
+                    }
 
                     log.LogInformation("No open positions.");
                     return new OkObjectResult("There are no open positions to close.");
                 }
 
                 // Get closed blocks
-                var closedBlocks = await _queries.GetClosedBlocksByUserIdAndSymbol(userId, symbol);
+                var closedBlocks = await _blockClosedRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
                 // Move closed blocks to one condensed block
                 var profit = closedBlock.Profit;
@@ -62,13 +91,63 @@ namespace TradingService.TradeManagement
                     profit += block.Profit;
                 }
 
-                await _queries.CreateCondensedBlockByUserIdAndSymbol(userId, symbol, profit);
+                var userCondensedBlocks = await _blockCondensedRepo.GetItemsAsyncByUserId(userId);
+                var userCondensedBlock = userCondensedBlocks.FirstOrDefault();
+
+                if (userCondensedBlock == null) // Initial UserCondensedBlock item creation
+                {
+                    var userCondensedBlockToCreate = new UserCondensedBlock()
+                    {
+                        UserId = userId,
+                        CondensedBlocks = new List<CondensedBlock>()
+                    };
+                    await _blockCondensedRepo.AddItemAsync(userCondensedBlockToCreate);
+                }
+
+                var condensedBlockToUpdate = userCondensedBlock.CondensedBlocks.FirstOrDefault(l => l.Symbol == symbol);
+
+                if (condensedBlockToUpdate == null)
+                {
+                    var condensedBlockToAdd = new CondensedBlock
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        DateUpdated = DateTime.Now,
+                        Symbol = symbol,
+                        Profit = profit
+                    };
+                    userCondensedBlock.CondensedBlocks.Add(condensedBlockToAdd);
+                }
+                else
+                {
+                    condensedBlockToUpdate.DateUpdated = DateTime.Now;
+                    condensedBlockToUpdate.Profit += profit;
+                }
+
+                var updateUserCondensedBlock = await _blockCondensedRepo.UpdateItemAsync(userCondensedBlock);
 
                 // Delete closed blocks
-                await _queries.DeleteClosedBlocksByClosedBlocks(closedBlocks);
+                foreach (var block in closedBlocks)
+                {
+                    await _blockClosedRepo.DeleteItemAsync(block);
+                }
 
-                // Reset blocks
-                await _queries.ResetUserBlocksByUserIdAndSymbol(userId, symbol);
+                // Reset blocks ToDo: Create a common query to be used throughout for resetting blocks
+                foreach (var block in blocks.Where(b => b.BuyOrderCreated || b.SellOrderCreated))
+                {
+                    block.ExternalBuyOrderId = new Guid();
+                    block.ExternalSellOrderId = new Guid();
+                    block.ExternalStopLossOrderId = new Guid();
+                    block.BuyOrderCreated = false;
+                    block.BuyOrderFilled = false;
+                    block.BuyOrderFilledPrice = 0;
+                    block.DateBuyOrderFilled = DateTime.MinValue;
+                    block.SellOrderCreated = false;
+                    block.SellOrderFilled = false;
+                    block.SellOrderFilledPrice = 0;
+                    block.DateSellOrderFilled = DateTime.MinValue;
+
+                    var updateBlock = await _blockRepo.UpdateItemAsync(block);
+                }
 
                 log.LogInformation($"Stopped trading for user {userId} and symbol {symbol} at {DateTimeOffset.Now}.");
 
