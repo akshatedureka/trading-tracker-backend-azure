@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.Common.Models;
+using TradingService.Core.Models;
 using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement

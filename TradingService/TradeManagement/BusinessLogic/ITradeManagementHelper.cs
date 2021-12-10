@@ -1,10 +1,9 @@
 ﻿using Alpaca.Markets;
-using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TradingService.Common.Models;
+using TradingService.Core.Entities;
 
 namespace TradingService.TradeManagement.BusinessLogic
 {

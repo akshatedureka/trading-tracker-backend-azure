@@ -5,7 +5,8 @@ using Newtonsoft.Json;
 using System;
 using System.Text;
 using System.Threading.Tasks;
-using TradingService.Common.Models;
+using TradingService.Core.Models;
+using TradingService.Core.Entities;
 
 namespace TradingService.TradeManagement.Common
 {

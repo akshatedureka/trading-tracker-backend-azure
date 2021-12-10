@@ -8,8 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using TradingService.Common.Order;
-using TradingService.Common.Models;
-using TradingService.Common.Repository;
+using TradingService.Core.Entities;
 using Alpaca.Markets;
 using TradingService.TradeManagement.Transfer;
 using TradingService.Core.Interfaces.Persistence;
@@ -20,16 +19,19 @@ namespace TradingService.TradeManagement
     public class GetComparisonData
     {
         private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
         private readonly ITradeOrder _order;
         private readonly IAccountItemRepository _accountRepo;
+        private readonly IBlockItemRepository _blockRepo;
+        private readonly ISymbolItemRepository _symbolRepo;
 
-        public GetComparisonData(IConfiguration configuration, IQueries queries, ITradeOrder order, IAccountItemRepository accountRepo)
+        public GetComparisonData(IConfiguration configuration, ISymbolItemRepository symbolRepo, IBlockItemRepository blockRepo, ITradeOrder order, IAccountItemRepository accountRepo)
         {
             _configuration = configuration;
-            _queries = queries;
             _order = order;
+            _symbolRepo = symbolRepo;
             _accountRepo = accountRepo;
+            _blockRepo = blockRepo;
+
         }
 
         [FunctionName("GetComparisonData")]
@@ -46,8 +48,9 @@ namespace TradingService.TradeManagement
             }
 
             var accountType = await _accountRepo.GetAccountTypeByUserId(userId);
-            var symbols = await _queries.GetActiveTradingSymbolsByUserId(userId);
-            var blocks = await _queries.GetBlocksByUserIdAndSymbols(userId, symbols);
+            var userSymbolReponse = await _symbolRepo.GetItemsAsyncByUserId(userId);
+            var symbols = userSymbolReponse.FirstOrDefault().Symbols;
+            var blocks = await _blockRepo.GetItemsAsyncByUserId(userId);
 
             // Get open orders
             var openOrders = await _order.GetOpenOrders(_configuration, userId);

@@ -1,14 +1,12 @@
 ﻿using Alpaca.Markets;
-using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TradingService.Common.Models;
+using TradingService.Core.Entities;
 using TradingService.Common.Order;
-using TradingService.Common.Repository;
 using TradingService.Core.Interfaces.Persistence;
 using TradingService.TradeManagement.Common;
 
@@ -17,16 +15,16 @@ namespace TradingService.TradeManagement.BusinessLogic
     public class TradeManagementHelper : ITradeManagementHelper
     {
         private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
         private readonly ITradeOrder _order;
         private readonly ILadderItemRepository _ladderRepo;
+        private readonly IBlockItemRepository _blockRepo;
 
-        public TradeManagementHelper(IConfiguration configuration, IQueries queries, ITradeOrder order, ILadderItemRepository ladderRepo)
+        public TradeManagementHelper(IConfiguration configuration, ITradeOrder order, ILadderItemRepository ladderRepo, IBlockItemRepository blockRepo)
         {
             _configuration = configuration;
-            _queries = queries;
             _order = order;
             _ladderRepo = ladderRepo;
+            _blockRepo = blockRepo;
         }
 
         public List<Block> GetBlocksWithoutOpenOrders()
@@ -85,7 +83,7 @@ namespace TradingService.TradeManagement.BusinessLogic
                     blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                     blockToUpdate.BuyOrderCreated = true;
 
-                    await _queries.UpdateBlock(blockToUpdate);
+                    await _blockRepo.UpdateItemAsync(blockToUpdate);
                     log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
                 }
 
@@ -107,7 +105,7 @@ namespace TradingService.TradeManagement.BusinessLogic
                     blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                     blockToUpdate.BuyOrderCreated = true;
 
-                    await _queries.UpdateBlock(blockToUpdate);
+                    await _blockRepo.UpdateItemAsync(blockToUpdate);
                     log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
                 }
             }
@@ -158,7 +156,7 @@ namespace TradingService.TradeManagement.BusinessLogic
                     blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                     blockToUpdate.SellOrderCreated = true;
 
-                    await _queries.UpdateBlock(blockToUpdate);
+                    await _blockRepo.UpdateItemAsync(blockToUpdate);
                     log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
                 }
 
@@ -180,7 +178,7 @@ namespace TradingService.TradeManagement.BusinessLogic
                     blockToUpdate.ExternalStopLossOrderId = orderIds.StopLossOrderId;
                     blockToUpdate.SellOrderCreated = true;
 
-                    await _queries.UpdateBlock(blockToUpdate);
+                    await _blockRepo.UpdateItemAsync(blockToUpdate);
                     log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
                 }
             }
@@ -192,7 +190,7 @@ namespace TradingService.TradeManagement.BusinessLogic
             log.LogInformation($"Buy order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
             // Get trade block
-            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+            var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
             // Update block designating buy order has been executed
             var blockToUpdate = blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId);
@@ -204,7 +202,7 @@ namespace TradingService.TradeManagement.BusinessLogic
                 blockToUpdate.BuyOrderFilledPrice = executedBuyPrice;
                 blockToUpdate.SellOrderCreated = true;
 
-                await _queries.UpdateBlock(blockToUpdate);
+                await _blockRepo.UpdateItemAsync(blockToUpdate);
             }
             else
             {
@@ -221,7 +219,7 @@ namespace TradingService.TradeManagement.BusinessLogic
             log.LogInformation($"Sell order executed for trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId} executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
             // Get trade block
-            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+            var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
             // Update block designating buy order has been executed
             var blockToUpdate = blocks.FirstOrDefault(b => b.ExternalSellOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);
@@ -248,7 +246,18 @@ namespace TradingService.TradeManagement.BusinessLogic
                 await TradeManagementCommon.CreateClosedBlockMsg(log, _configuration, blockToUpdate);
 
                 // Reset block
-                await _queries.ResetUserBlock(blockToUpdate);
+                blockToUpdate.ExternalBuyOrderId = new Guid();
+                blockToUpdate.ExternalSellOrderId = new Guid();
+                blockToUpdate.ExternalStopLossOrderId = new Guid();
+                blockToUpdate.BuyOrderCreated = false;
+                blockToUpdate.BuyOrderFilled = false;
+                blockToUpdate.BuyOrderFilledPrice = 0;
+                blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
+                blockToUpdate.SellOrderCreated = false;
+                blockToUpdate.SellOrderFilled = false;
+                blockToUpdate.SellOrderFilledPrice = 0;
+                blockToUpdate.DateSellOrderFilled = DateTime.MinValue;
+                await _blockRepo.UpdateItemAsync(blockToUpdate);
 
                 log.LogInformation($"Reset long block id {blockToUpdate.Id} symbol {symbol} at: {DateTimeOffset.Now}.");
             }
@@ -265,7 +274,7 @@ namespace TradingService.TradeManagement.BusinessLogic
             log.LogInformation($"Sell order executed for short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed sell price {executedSellPrice} at: {DateTimeOffset.Now}.");
 
             // Get trade blocks
-            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+            var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
             // Update block designating sell order has been executed
             //ToDo: Block could be found using either sell order or stop loss order id's
@@ -284,7 +293,7 @@ namespace TradingService.TradeManagement.BusinessLogic
                 return;
             }
 
-            await _queries.UpdateBlock(blockToUpdate);
+            await _blockRepo.UpdateItemAsync(blockToUpdate);
             log.LogInformation($"Saved block id {blockToUpdate.Id} to DB with buy order created flag to true at: {DateTimeOffset.Now}.");
         }
 
@@ -294,7 +303,7 @@ namespace TradingService.TradeManagement.BusinessLogic
             log.LogInformation($"Buy order executed for short trading block for user id {userId}, symbol {symbol}, external order id {externalOrderId}, executed buy price {executedBuyPrice} at: {DateTimeOffset.Now}.");
 
             // Get block
-            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+            var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
             var blockToUpdate = blocks.FirstOrDefault(b => b.ExternalBuyOrderId == externalOrderId || b.ExternalStopLossOrderId == externalOrderId);
 
@@ -320,7 +329,18 @@ namespace TradingService.TradeManagement.BusinessLogic
                 await TradeManagementCommon.CreateClosedBlockMsg(log, _configuration, blockToUpdate);
 
                 // Reset block
-                await _queries.ResetUserBlock(blockToUpdate);
+                blockToUpdate.ExternalBuyOrderId = new Guid();
+                blockToUpdate.ExternalSellOrderId = new Guid();
+                blockToUpdate.ExternalStopLossOrderId = new Guid();
+                blockToUpdate.BuyOrderCreated = false;
+                blockToUpdate.BuyOrderFilled = false;
+                blockToUpdate.BuyOrderFilledPrice = 0;
+                blockToUpdate.DateBuyOrderFilled = DateTime.MinValue;
+                blockToUpdate.SellOrderCreated = false;
+                blockToUpdate.SellOrderFilled = false;
+                blockToUpdate.SellOrderFilledPrice = 0;
+                blockToUpdate.DateSellOrderFilled = DateTime.MinValue;
+                await _blockRepo.UpdateItemAsync(blockToUpdate);
 
                 log.LogInformation($"Reset short block id {blockToUpdate.Id} symbol {symbol} at: {DateTimeOffset.Now}.");
             }

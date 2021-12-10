@@ -1,35 +1,23 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
-using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.Common.Models;
-using TradingService.Common.Order;
-using TradingService.Common.Repository;
 using TradingService.TradeManagement.BusinessLogic;
 using TradingService.TradeManagement.Models;
+using TradingService.Core.Interfaces.Persistence;
 
 namespace TradingService.TradeManagement
 {
     public class ProcessLongOrderMessage
     {
-        private readonly IConfiguration _configuration;
-        private readonly IQueries _queries;
-        private readonly IRepository _repository;
-        private readonly ITradeOrder _order;
         private readonly ITradeManagementHelper _tradeManagementHelper;
+        private readonly IBlockItemRepository _blockRepo;
 
-        public ProcessLongOrderMessage(IConfiguration configuration, IRepository repository, IQueries queries, ITradeOrder order, ITradeManagementHelper tradeManagementHelper)
+        public ProcessLongOrderMessage(IBlockItemRepository blockRepo, ITradeManagementHelper tradeManagementHelper)
         {
-            _configuration = configuration;
-            _repository = repository;
-            _queries = queries;
-            _order = order;
+            _blockRepo = blockRepo;
             _tradeManagementHelper = tradeManagementHelper;
         }
 
@@ -47,7 +35,7 @@ namespace TradingService.TradeManagement
                 throw new Exception("Required data is missing");
             }
 
-            var blocks = await _queries.GetBlocksByUserIdAndSymbol(userId, symbol);
+            var blocks = await _blockRepo.GetItemsAsyncByUserIdAndSymbol(userId, symbol);
 
             switch (messageType)
             {
@@ -80,7 +68,6 @@ namespace TradingService.TradeManagement
                 default:
                     break;
             }
-
         }
     }
 }

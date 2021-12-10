@@ -4,7 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Alpaca.Markets;
 using Microsoft.Extensions.Configuration;
-using TradingService.Common.Models;
+using TradingService.Core.Entities;
+using TradingService.Core.Models;
 using TradingService.Core.Enums;
 using TradingService.Core.Interfaces.Persistence;
 
@@ -37,12 +38,12 @@ namespace TradingService.Common.Order
             return stopLimitOrder.OrderId;
         }
 
-        public async Task<OneCancelsOtherIds> CreateOneCancelsOtherOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<OrderIds> CreateOneCancelsOtherOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var ocoOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, takeProfitPrice).OneCancelsOther(stopLossPrice));
             
-            return new OneCancelsOtherIds()
+            return new OrderIds()
             {
                 TakeProfitId = ocoOrder.OrderId,
                 StopLossOrderId =
@@ -50,12 +51,12 @@ namespace TradingService.Common.Order
             };
         }
 
-        public async Task<BracketOrderIds> CreateMarketBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<OrderIds> CreateMarketBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Market(symbol, quantity).Bracket(takeProfitPrice, stopLossPrice));
 
-            return new BracketOrderIds
+            return new OrderIds
             {
                 ParentOrderId = bracketOrder.OrderId,
                 TakeProfitId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
@@ -64,12 +65,12 @@ namespace TradingService.Common.Order
             };
         }
 
-        public async Task<BracketOrderIds> CreateLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<OrderIds> CreateLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.Limit(symbol, quantity, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
 
-            return new BracketOrderIds
+            return new OrderIds
             {
                 ParentOrderId = bracketOrder.OrderId,
                 TakeProfitId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,
@@ -78,12 +79,12 @@ namespace TradingService.Common.Order
             };
         }
 
-        public async Task<BracketOrderIds> CreateStopLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
+        public async Task<OrderIds> CreateStopLimitBracketOrder(IConfiguration config, OrderSide orderSide, string userId, string symbol, long quantity, decimal stopPrice, decimal limitPrice, decimal takeProfitPrice, decimal stopLossPrice)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
             var bracketOrder = await alpacaTradingClient.PostOrderAsync(orderSide.StopLimit(symbol, quantity, stopPrice, limitPrice).Bracket(takeProfitPrice, stopLossPrice));
 
-            return new BracketOrderIds
+            return new OrderIds
             {
                 ParentOrderId = bracketOrder.OrderId,
                 TakeProfitId = bracketOrder.Legs.Where(l => l.OrderType == OrderType.Limit).FirstOrDefault().OrderId,

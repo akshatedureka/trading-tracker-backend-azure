@@ -4,7 +4,8 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using TradingService.Common.Models;
+using TradingService.Core.Entities;
+using TradingService.Core.Models;
 using TradingService.Common.Repository;
 
 namespace TradingService.TradeManagement

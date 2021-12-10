@@ -10,7 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TradingService.Common.Models;
+using TradingService.Core.Entities;
 using TradingService.Common.Order;
 using TradingService.Common.Repository;
 using TradingService.TradeManagement.Transfer;
