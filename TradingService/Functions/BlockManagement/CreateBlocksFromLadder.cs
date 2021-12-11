@@ -72,7 +72,7 @@ namespace TradingService.Functions.BlockManagement
             var initialConfidenceLevel = 1;
 
             // Create blocks (order by buy price ascending)
-            var blockPrices = GenerateBlockPrices(accountType, currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage, ladderData.StopLossPercentage).OrderBy(p => p.BuyPrice);
+            var blockPrices = GenerateBlockPricesByPrice(accountType, currentPrice, ladderData.BuyPercentage, ladderData.SellPercentage, ladderData.StopLossPercentage).OrderBy(p => p.BuyPrice);
 
             try
             {
@@ -87,7 +87,7 @@ namespace TradingService.Functions.BlockManagement
                         ConfidenceLevel = initialConfidenceLevel,
                         BuyOrderPrice = blockPrice.BuyPrice,
                         SellOrderPrice = blockPrice.SellPrice,
-                        StopLossOrderPrice = blockPrice.StopLossPrice
+                        StopLossOrderPrice = blockPrice.StopLossPrice < 0 ? 0.01M : blockPrice.StopLossPrice
                     };
 
                     await _blockRepo.AddItemAsync(block);
@@ -125,7 +125,7 @@ namespace TradingService.Functions.BlockManagement
             }
         }
 
-        private List<BlockPrices> GenerateBlockPrices(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
+        private List<BlockPrices> GenerateBlockPricesByPercentage(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
             const int numBlocks = 200;
@@ -164,5 +164,46 @@ namespace TradingService.Functions.BlockManagement
 
             return blockPrices;
         }
+
+        private List<BlockPrices> GenerateBlockPricesByPrice(AccountTypes accountType, decimal currentPrice, decimal buyPriceAmount, decimal sellPriceAmount, decimal stopLossPriceAmount)
+        {
+            var blockPrices = new List<BlockPrices>();
+            const int numBlocks = 200;
+
+            // Calculate range up
+            for (var i = 0; i < numBlocks / 2; i++)
+            {
+                var buyPrice = currentPrice + (i * buyPriceAmount);
+                var sellPrice = buyPrice + sellPriceAmount;
+                var stopLossPrice = buyPrice - stopLossPriceAmount;
+
+                if (accountType == AccountTypes.Short)
+                {
+                    stopLossPrice = sellPrice + stopLossPriceAmount;
+                }
+
+                var blockItemUp = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
+                blockPrices.Add(blockItemUp);
+            }
+
+            // Calculate range down
+            for (var i = 1; i < (numBlocks / 2); i++)
+            {
+                var buyPrice = currentPrice - (i * buyPriceAmount);
+                var sellPrice = buyPrice + sellPriceAmount;
+                var stopLossPrice = buyPrice - stopLossPriceAmount;
+
+                if (accountType == AccountTypes.Short)
+                {
+                    stopLossPrice = sellPrice + stopLossPriceAmount;
+                }
+
+                var blockItemDown = new BlockPrices { BuyPrice = buyPrice, SellPrice = sellPrice, StopLossPrice = stopLossPrice };
+                blockPrices.Add(blockItemDown);
+            }
+
+            return blockPrices;
+        }
+
     }
 }
