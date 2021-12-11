@@ -60,6 +60,20 @@ namespace TradingService.Infrastructure.CosmosDbData.Repository
             return updatedItem;
         }
 
+        public async Task<List<T>> GetItemsAsync()
+        {
+            FeedIterator<T> resultSetIterator = _container.GetItemQueryIterator<T>();
+            List<T> results = new List<T>();
+            while (resultSetIterator.HasMoreResults)
+            {
+                FeedResponse<T> response = await resultSetIterator.ReadNextAsync();
+
+                results.AddRange(response.ToList());
+            }
+
+            return results;
+        }
+
         public async Task<List<T>> GetItemsAsyncByUserId(string userId)
         {
             string query = @$"SELECT * FROM c WHERE c.userId = @UserId";

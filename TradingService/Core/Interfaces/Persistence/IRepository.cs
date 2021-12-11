@@ -7,6 +7,7 @@ namespace TradingService.Core.Interfaces.Persistence
     public interface IRepository<T> where T : BaseEntity
     {
         Task<T> GetItemAsync(string id);
+        Task<List<T>> GetItemsAsync();
         Task<T> AddItemAsync(T item);
         Task<T> UpdateItemAsync(T item);
         Task DeleteItemAsync(T item);

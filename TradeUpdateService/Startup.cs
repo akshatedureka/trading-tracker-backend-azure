@@ -24,7 +24,6 @@ namespace TradeUpdateService
             services.AddSingleton<IConnectUsers, ConnectUsers>();
             services.AddScoped<ITradeUpdateListener, TradeUpdateListener>();
             services.AddSingleton<ICreateOrders, CreateOrders>();
-            services.AddSingleton<IUpdateBlockRange, UpdateBlockRange>();
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
         }
 
@@ -51,7 +50,6 @@ namespace TradeUpdateService
             BackgroundJob.Enqueue<IConnectUsers>(x => x.GetUsersToConnect()); // run immediately, then on a schedule to check for new users
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
             RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/30 * * * * *"); // every 30 seconds
-            RecurringJob.AddOrUpdate<IUpdateBlockRange>(x => x.CreateUpdateBlockRangeMessage(), Cron.Hourly);
         }
     }
 }
