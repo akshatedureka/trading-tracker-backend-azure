@@ -23,7 +23,6 @@ namespace TradeUpdateService
             services.AddHangfireServer(options => { options.WorkerCount = Environment.ProcessorCount * 10; }); // Max workers
             services.AddSingleton<IConnectUsers, ConnectUsers>();
             services.AddScoped<ITradeUpdateListener, TradeUpdateListener>();
-            services.AddSingleton<ICreateOrders, CreateOrders>();
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
         }
 
@@ -49,7 +48,6 @@ namespace TradeUpdateService
 
             BackgroundJob.Enqueue<IConnectUsers>(x => x.GetUsersToConnect()); // run immediately, then on a schedule to check for new users
             RecurringJob.AddOrUpdate<IConnectUsers>(x => x.GetUsersToConnect(), Cron.Minutely);
-            RecurringJob.AddOrUpdate<ICreateOrders>(x => x.CreateBuySellOrders(), "*/30 * * * * *"); // every 30 seconds
         }
     }
 }

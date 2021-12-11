@@ -11,22 +11,20 @@ using Azure.Storage.Queues;
 
 namespace TradingService.Functions.BlockManagement
 {
-    public class UpdateBlockRangeAddMessage
+    public class UpdateBlockRangeQueueMsg
     {
         private readonly IConfiguration _configuration;
-        private readonly ISymbolItemRepository _symbolRepo;
         private readonly IAccountItemRepository _accountRepo;
         private readonly ILadderItemRepository _ladderRepo;
 
-        public UpdateBlockRangeAddMessage(IConfiguration configuration, ISymbolItemRepository symbolRepo, IAccountItemRepository accountRepo, ILadderItemRepository ladderRepo)
+        public UpdateBlockRangeQueueMsg(IConfiguration configuration, IAccountItemRepository accountRepo, ILadderItemRepository ladderRepo)
         {
             _configuration = configuration;
-            _symbolRepo = symbolRepo;
             _accountRepo = accountRepo;
             _ladderRepo = ladderRepo;
         }
 
-        [FunctionName("UpdateBlockRangeAddMessage")]
+        [FunctionName("UpdateBlockRangeQueueMsg")]
         public async Task Run([TimerTrigger("0 0 * * * *")] TimerInfo myTimer, ILogger log) // Every hour
         {
             var accounts = await _accountRepo.GetItemsAsync();
@@ -40,8 +38,7 @@ namespace TradingService.Functions.BlockManagement
 
             foreach (var account in accounts)
             {
-                // Read symbols for user from Cosmos DB
-                var userSymbolResponse = await _symbolRepo.GetItemsAsyncByUserId(account.UserId);
+                // Read ladders for user from Cosmos DB to check if blocks have been created
                 var userLadderRepsone = await _ladderRepo.GetItemsAsyncByUserId(account.UserId);
 
                 if (userLadderRepsone != null)
@@ -63,7 +60,6 @@ namespace TradingService.Functions.BlockManagement
                     }
                 }
             }
-
         }
 
         private string Base64Encode(string plainText) // ToDo: Make this a common function
@@ -71,6 +67,5 @@ namespace TradingService.Functions.BlockManagement
             var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
             return Convert.ToBase64String(plainTextBytes);
         }
-
     }
 }
