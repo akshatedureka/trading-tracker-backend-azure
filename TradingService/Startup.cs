@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TradingService.Common.Order;
+using TradingService.Infrastructure.Services.Interfaces;
+using TradingService.Infrastructure.Services;
 using TradingService.Core.Interfaces.Persistence;
 using TradingService.Infrastructure.AppSettings;
 using TradingService.Infrastructure.CosmosDbData.Repository;
 using TradingService.Infrastructure.Extensions;
-using TradingService.TradeManagement.BusinessLogic;
+using TradingService.Infrastructure.Helpers;
+using TradingService.Infrastructure.Helpers.Interfaces;
 
 [assembly: FunctionsStartup(typeof(TradingService.Startup))]
 
@@ -24,7 +26,7 @@ namespace TradingService
 
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddScoped<ITradeOrder, TradeOrder>();
+            builder.Services.AddScoped<ITradeService, TradeService>();
             builder.Services.AddScoped<ITradeManagementHelper, TradeManagementHelper>();
 
             var endpointUri = builder.GetContext().Configuration.GetValue<string>("EndPointUri"); // The Azure Cosmos DB endpoint
