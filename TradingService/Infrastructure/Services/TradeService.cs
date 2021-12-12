@@ -170,6 +170,57 @@ namespace TradingService.Infrastructure.Services
             }
         }
 
+        public async Task<decimal> GetBuyingPower(IConfiguration config, string userId)
+        {
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
+
+            try
+            {
+                var account = await alpacaTradingClient.GetAccountAsync();
+
+                return account.BuyingPower;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while getting open orders in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
+        public async Task<decimal> GetAccountValue(IConfiguration config, string userId)
+        {
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
+
+            try
+            {
+                var account = await alpacaTradingClient.GetAccountAsync();
+
+                return account.Equity;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while getting open orders in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
+        public async Task<decimal> GetAccountValuePreviousDay(IConfiguration config, string userId)
+        {
+            var alpacaTradingClient = GetAlpacaTradingClient(config, userId);
+
+            try
+            {
+                var account = await alpacaTradingClient.GetAccountAsync();
+
+                return account.LastEquity;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error while getting open orders in Alpaca {e}: ", e);
+                throw;
+            }
+        }
+
         public async Task<List<IPositionActionStatus>> CloseOpenPositionsAndCancelExistingOrders(IConfiguration config, string userId)
         {
             var alpacaTradingClient = GetAlpacaTradingClient(config, userId);

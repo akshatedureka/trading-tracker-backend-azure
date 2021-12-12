@@ -25,6 +25,12 @@ namespace TradingService.Infrastructure.Services.Interfaces
 
         public Task<decimal> GetCurrentPrice(IConfiguration config, string userId, string symbol);
 
+        public Task<decimal> GetBuyingPower(IConfiguration config, string userId);
+
+        public Task<decimal> GetAccountValue(IConfiguration config, string userId);
+
+        public Task<decimal> GetAccountValuePreviousDay(IConfiguration config, string userId);
+
         public Task<bool> CancelOrderByOrderId(IConfiguration config, string userId, Guid externalOrderId);
 
         public Task<List<IPosition>> GetOpenPositions(IConfiguration config, string userId);
