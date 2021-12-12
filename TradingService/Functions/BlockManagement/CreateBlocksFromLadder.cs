@@ -128,7 +128,7 @@ namespace TradingService.Functions.BlockManagement
         private List<BlockPrices> GenerateBlockPricesByPercentage(AccountTypes accountType, decimal currentPrice, decimal buyPercentage, decimal sellPercentage, decimal stopLossPercentage)
         {
             var blockPrices = new List<BlockPrices>();
-            const int numBlocks = 200;
+            const int numBlocks = 50;
 
             // Calculate range up
             for (var i = 0; i < numBlocks / 2; i++)
@@ -168,7 +168,7 @@ namespace TradingService.Functions.BlockManagement
         private List<BlockPrices> GenerateBlockPricesByPrice(AccountTypes accountType, decimal currentPrice, decimal buyPriceAmount, decimal sellPriceAmount, decimal stopLossPriceAmount)
         {
             var blockPrices = new List<BlockPrices>();
-            const int numBlocks = 200;
+            const int numBlocks = 50;
 
             // Calculate range up
             for (var i = 0; i < numBlocks / 2; i++)

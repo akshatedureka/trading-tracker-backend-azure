@@ -64,9 +64,9 @@ namespace TradingService.Infrastructure.Helpers
                 var blocksBelow = GetLongBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
 
                 // Create limit / stop limit orders for each block above and below current price
-                var countAboveAndBelow = 2;
+                var countAboveAndBelow = 1;
 
-                // Two blocks above
+                // One block above
                 for (var x = 0; x < countAboveAndBelow; x++)
                 {
                     var block = blocksAbove[x];
@@ -91,7 +91,7 @@ namespace TradingService.Infrastructure.Helpers
                     log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket buy orders at {DateTime.Now}.");
                 }
 
-                // Two blocks below
+                // One block below
                 for (var x = 0; x < countAboveAndBelow; x++)
                 {
                     var block = blocksBelow[x];
@@ -137,9 +137,9 @@ namespace TradingService.Infrastructure.Helpers
                 var blocksBelow = GetShortBlocksBelowCurrentPriceByPercentage(blocks, currentPrice, 5);
 
                 // Create limit / stop limit orders for each block above and below current price
-                var countAboveAndBelow = 2;
+                var countAboveAndBelow = 1;
 
-                // Two blocks below
+                // One block below
                 for (var x = 0; x < countAboveAndBelow; x++)
                 {
                     var block = blocksBelow[x];
@@ -164,7 +164,7 @@ namespace TradingService.Infrastructure.Helpers
                     log.LogInformation($"Updated block id {blockToUpdate.Id} with initial bracket sell orders at {DateTime.Now}.");
                 }
 
-                // Two blocks above
+                // One block above
                 for (var x = 0; x < countAboveAndBelow; x++)
                 {
                     var block = blocksAbove[x];

@@ -1,6 +1,11 @@
 {
   "version": "2.0",
   "logging": {
+    "logLevel": {
+      "Function.CreateBuyOrdersFromSymbol": "Information",
+      "Function.CreateSellOrdersFromSymbol": "Information",
+      "Function": "Information"
+    },
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": true,
