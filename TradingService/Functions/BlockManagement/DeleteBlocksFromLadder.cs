@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using TradingService.Core.Entities;
 using TradingService.Core.Interfaces.Persistence;
+using TradingService.Infrastructure.Helpers.Interfaces;
 
 namespace TradingService.Functions.BlockManagement
 {
@@ -18,13 +19,13 @@ namespace TradingService.Functions.BlockManagement
     {
         private readonly IBlockItemRepository _blockRepo;
         private readonly ILadderItemRepository _ladderRepo;
-        private readonly ISymbolItemRepository _symbolRepo;
+        private readonly ITradingServiceHelper _tradingServiceHelper;
 
-        public DeleteBlocksFromLadder(IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo, ISymbolItemRepository symbolRepo)
+        public DeleteBlocksFromLadder(IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo, ITradingServiceHelper tradingServiceHelper)
         {
             _blockRepo = blockRepo;
             _ladderRepo = ladderRepo;
-            _symbolRepo = symbolRepo;
+            _tradingServiceHelper = tradingServiceHelper;
         }
 
         [FunctionName("DeleteBlocksFromLadder")]
@@ -42,10 +43,7 @@ namespace TradingService.Functions.BlockManagement
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
             }
 
-            var userSymbols = await _symbolRepo.GetItemsAsyncByUserId(userId);
-            var isTrading = userSymbols.FirstOrDefault().Symbols.Where(s => s.Name == ladder.Symbol).FirstOrDefault().Trading;
-
-            if (isTrading)
+            if (await _tradingServiceHelper.IsSymbolTrading(userId, ladder.Symbol))
             {
                 return new BadRequestObjectResult($"Blocks cannot be deleted because trading is active for symbol {ladder.Symbol}.");
             }

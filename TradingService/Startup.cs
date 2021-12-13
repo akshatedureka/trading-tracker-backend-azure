@@ -28,6 +28,7 @@ namespace TradingService
         {
             builder.Services.AddScoped<ITradeService, TradeService>();
             builder.Services.AddScoped<ITradeManagementHelper, TradeManagementHelper>();
+            builder.Services.AddScoped<ITradingServiceHelper, TradingServiceHelper>();
 
             var endpointUri = builder.GetContext().Configuration.GetValue<string>("EndPointUri"); // The Azure Cosmos DB endpoint
             var primaryKey = builder.GetContext().Configuration.GetValue<string>("PrimaryKey"); // The primary key for the Azure Cosmos account

@@ -8,16 +8,19 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using TradingService.Core.Interfaces.Persistence;
+using TradingService.Infrastructure.Helpers.Interfaces;
 
 namespace TradingService.Functions.SymbolManagement
 {
     public class DeleteTradingSymbol
     {
         private readonly ISymbolItemRepository _symbolRepo;
+        private readonly ITradingServiceHelper _tradingServiceHelper;
 
-        public DeleteTradingSymbol(ISymbolItemRepository symbolRepo)
+        public DeleteTradingSymbol(ISymbolItemRepository symbolRepo, ITradingServiceHelper tradingServiceHelper)
         {
             _symbolRepo = symbolRepo;
+            _tradingServiceHelper = tradingServiceHelper;
         }
 
         [FunctionName("DeleteTradingSymbol")]
@@ -31,6 +34,11 @@ namespace TradingService.Functions.SymbolManagement
             if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(userId))
             {
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
+            }
+
+            if (await _tradingServiceHelper.IsSymbolTrading(userId, symbol))
+            {
+                return new BadRequestObjectResult($"Symbol cannot be deleted because trading is active for symbol {symbol}.");
             }
 
             try

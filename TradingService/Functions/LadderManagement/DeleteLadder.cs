@@ -8,16 +8,19 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using TradingService.Core.Interfaces.Persistence;
+using TradingService.Infrastructure.Helpers.Interfaces;
 
 namespace TradingService.Functions.LadderManagement
 {
     public class DeleteLadder
     {
         private readonly ILadderItemRepository _ladderRepo;
+        private readonly ITradingServiceHelper _tradingServiceHelper;
 
-        public DeleteLadder(ILadderItemRepository ladderRepo)
+        public DeleteLadder(ILadderItemRepository ladderRepo, ITradingServiceHelper tradingServiceHelper)
         {
             _ladderRepo = ladderRepo;
+            _tradingServiceHelper = tradingServiceHelper;
         }
 
         [FunctionName("DeleteLadder")]
@@ -31,6 +34,11 @@ namespace TradingService.Functions.LadderManagement
             if (string.IsNullOrEmpty(symbol) || string.IsNullOrEmpty(userId))
             {
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
+            }
+
+            if (await _tradingServiceHelper.IsSymbolTrading(userId, symbol))
+            {
+                return new BadRequestObjectResult($"Ladder cannot be deleted because trading is active for symbol {symbol}.");
             }
 
             try
