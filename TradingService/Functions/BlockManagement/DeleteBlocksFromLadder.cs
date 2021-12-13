@@ -18,11 +18,13 @@ namespace TradingService.Functions.BlockManagement
     {
         private readonly IBlockItemRepository _blockRepo;
         private readonly ILadderItemRepository _ladderRepo;
+        private readonly ISymbolItemRepository _symbolRepo;
 
-        public DeleteBlocksFromLadder(IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo)
+        public DeleteBlocksFromLadder(IBlockItemRepository blockRepo, ILadderItemRepository ladderRepo, ISymbolItemRepository symbolRepo)
         {
             _blockRepo = blockRepo;
             _ladderRepo = ladderRepo;
+            _symbolRepo = symbolRepo;
         }
 
         [FunctionName("DeleteBlocksFromLadder")]
@@ -38,6 +40,14 @@ namespace TradingService.Functions.BlockManagement
             if (ladder is null || string.IsNullOrEmpty(ladder.Symbol) || string.IsNullOrEmpty(userId))
             {
                 return new BadRequestObjectResult("Symbol or user id has not been provided.");
+            }
+
+            var userSymbols = await _symbolRepo.GetItemsAsyncByUserId(userId);
+            var isTrading = userSymbols.FirstOrDefault().Symbols.Where(s => s.Name == ladder.Symbol).FirstOrDefault().Trading;
+
+            if (isTrading)
+            {
+                return new BadRequestObjectResult($"Blocks cannot be deleted because trading is active for symbol {ladder.Symbol}.");
             }
 
             try
